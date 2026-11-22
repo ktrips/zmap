@@ -26,6 +26,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .zip small{display:block;font:12px system-ui;letter-spacing:0;color:var(--mute);margin-top:6px}
 .steps{display:flex;gap:6px;justify-content:center;padding:4px 8px 12px}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
+.bonus{text-align:center;font-size:14px;color:var(--mute);margin:-4px 0 8px}.bonus b{display:inline-block;background:var(--warn);color:#fff;border-radius:99px;padding:1px 12px;font-size:16px}
 .steps i.on{background:var(--acc)}
 #sv{display:block;width:100%;height:240px;background:#9cc}
 #map{display:block;width:100%;height:auto;touch-action:manipulation;cursor:crosshair;background:var(--sea)}
@@ -63,6 +64,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg>
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
+    <div id="bonus" class="bonus"></div>
     <div class="bar" style="justify-content:center;padding-bottom:12px">
       <button id="widen">ヒントを広げる(桁を1つ外す)</button>
       <button id="next" class="primary" style="display:none">次のラウンドへ</button>
@@ -77,7 +79,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="msg" id="msg"></div>
-<p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選びます。当たれば難易度の倍率がそのまま得点、外れは0点で、全部外れなら0点、全部VEで当てれば5点、全部VDで当てれば25点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
+<p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選びます。当たれば「難易度の倍率 × 早撃ちボーナス」が得点、外れは0点。ヒントが狭い段階で当てるほどボーナスが大きく(7桁段階 ×2 → 最終段階 ×1)、全部外れなら0点、全部VEで最終段階に当てれば5点、全部VDなら25点、全部VDを最速で当てれば最大50点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
 ヒントは10秒ごとに自動で広がります。</p>
 </div>
 
@@ -93,6 +95,8 @@ const ROUNDS=[
 ];
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
+const STAGE_BONUS=[2,1.6,1.3,1.1,1];   // ヒントが狭い段階で当てるほど大きい
+const fmt=n=>(Math.round(n*10)/10).toString();
 let curDiff="Mid";
 function inJapan(lon,lat){return ISLANDS.some(poly=>{let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c;}return c;});}
 const LON0=128,LON1=146,LAT0=30,LAT1=46,W=400,H=480,KX=Math.cos(38*Math.PI/180);
@@ -146,10 +150,10 @@ function drawZip(){
   $("steps").innerHTML=[0,1,2,3,4].map(i=>`<i class="${i<=stage?"on":""}"></i>`).join("");
   $("area").textContent=`半径 約${RADIUS_KM[stage]}km`;
 }
-function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${total}点`;}
+function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${fmt(total)}点`;$("bonus").innerHTML=answered?"":`いま当てると <b>×${STAGE_BONUS[stage]}</b>`;}
 function schedule(){clearInterval(timer);timer=setInterval(()=>{if(!answered)widen();},10000);}
 function widen(){if(answered||stage>=4)return;stage++;render();setVB(vbFor(stage));hint();}
-function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると +${DIFF[d].mult}点)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
+function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
@@ -160,20 +164,20 @@ $("map").addEventListener("click",e=>{
   answered=true;clearInterval(timer);
   const q=ROUNDS[r],d=curDiff,km=dist(pin.lon,pin.lat,q.lon,q.lat);
   const hit=d==="VE"?inJapan(pin.lon,pin.lat):km<=DIFF[d].hit;
-  const pts=hit?DIFF[d].mult:0;
-  total+=pts;results.push({d,hit,pts});
+  const bonus=STAGE_BONUS[stage],pts=hit?Math.round(DIFF[d].mult*bonus*10)/10:0;
+  total=Math.round((total+pts)*10)/10;results.push({d,hit,pts,stage});
   const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
-  $("msg").innerHTML=hit?`🎯 <b>当たり! +${pts}点</b>(${DIFF[d].label}: ${ans})`:`❌ <b>外れ 0点</b> 正解は ${ans}(約${km.toFixed(1)}km 離れています)`;
+  $("msg").innerHTML=hit?`🎯 <b>当たり! +${fmt(pts)}点</b>(${DIFF[d].label}: ${ans}) ${DIFF[d].mult} × 早撃ちボーナス ×${bonus}${stage===0?" ⚡最速!":""}`:`❌ <b>外れ 0点</b> 正解は ${ans}(約${km.toFixed(1)}km 離れています)`;
   $("msg").classList.add("show");
   $("widen").disabled=true;$("next").style.display="";
   $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
   render();setVB(vbFor(stage,true));
 });
 $("widen").onclick=widen;
-function rating(t){return t>=25?"パーフェクト!":t>=18?"達人":t>=10?"上級者":t>=5?"中級者":t>=1?"ビギナー":"全部外れ…"}
+function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
 $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
-    $("msg").innerHTML=`<b>ゲーム終了 ${total} / 25点</b>(${rating(total)})<br>${results.map(x=>(x.hit?"🟩":"⬜")+x.d).join(" ")}<br>共有文: zmap ${total}/25 ${results.map(x=>x.hit?"🟩":"⬜").join("")}`;
+    $("msg").innerHTML=`<b>ゲーム終了 ${fmt(total)}点</b>(最大50点)(${rating(total)})<br>${results.map(x=>(x.hit?"🟩":"⬜")+x.d).join(" ")}<br>共有文: zmap ${fmt(total)}点 ${results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜").join("")}`;
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
   cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;vb=vbFor(0);$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
   render();startIntro(()=>{hint();schedule();});
