@@ -128,6 +128,19 @@ function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は�
     const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding`;
     sc.onload=()=>ok(window.google.maps);sc.onerror=()=>ng(new Error("Google Maps の読み込みに失敗"));document.head.appendChild(sc);});
 }
+// ---- Google Map 生成(答えのヒントになる地名・道路名・施設名などのラベルを必ず非表示にする) ----
+// スタイル定義は map-style.js(ZMAP_MAP_STYLE)。Map は必ずこの関数で生成する。
+// 見た目確認: ?mapstyle=off でスタイル無効(ラベル表示の衛星+地図)にして比較できる。
+async function createGoogleMap(el,opts){
+  const maps=await loadGoogleMaps();
+  const off=new URLSearchParams(location.search).get("mapstyle")==="off";
+  return new maps.Map(el,{
+    clickableIcons:false,gestureHandling:"greedy",
+    // styles は衛星/ハイブリッド画像には効かないため、ラベル非表示時は通常地図(roadmap)を使う
+    ...(off?{mapTypeId:"hybrid",mapTypeControl:true}:{mapTypeId:"roadmap",mapTypeControl:false,styles:window.ZMAP_MAP_STYLE.hideLabels}),
+    ...opts
+  });
+}
 // ---- Google Maps 実地図モード(キーがあり読み込めた場合のみ。失敗時は下のダミー表示にフォールバック) ----
 let gMode=false,gmap=null,gpano=null,gcircle=null,gpin=null,gtruth=null,gline=null;
 const G_ZOOM=[16,14,12,10,7],G_SVZ=[2.6,2,1.4,0.8,0];
@@ -135,7 +148,7 @@ async function initGoogle(){
   if(!MAPS_KEY)return;
   try{
     const gm=await loadGoogleMaps();
-    gmap=new gm.Map($("gmap"),{center:{lat:35.68,lng:139.76},zoom:5,mapTypeId:"hybrid",mapTypeControl:true,streetViewControl:false,fullscreenControl:false,clickableIcons:false,gestureHandling:"greedy"});
+    gmap=await createGoogleMap($("gmap"),{center:{lat:35.68,lng:139.76},zoom:5,streetViewControl:false,fullscreenControl:false});
     gmap.addListener("click",e=>{if(answered)return;pin={lon:e.latLng.lng(),lat:e.latLng.lat()};gDrawMap();});
     gpano=new gm.StreetViewPanorama($("gsv"),{visible:true,addressControl:false,linksControl:false,fullscreenControl:false,motionTracking:false,showRoadLabels:false,zoomControl:true,panControl:true,enableCloseButton:false});
     gMode=true;document.body.classList.add("gm");$("svtitle").textContent="ストリートビュー(Google)";
