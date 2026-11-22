@@ -31,7 +31,7 @@
 
 1. Google Cloud コンソールで **Maps JavaScript API / Geocoding API / Places API** を有効化し、キーを作成する。
 2. キーに制限をかける:
-   - **アプリケーションの制限:** HTTP リファラ(例: `https://<project-id>.web.app/*`、`https://<project-id>.firebaseapp.com/*`、`http://localhost:*/*`)
+   - **アプリケーションの制限:** HTTP リファラ(例: `https://zmap.ktrips.net/*`、`https://<project-id>.web.app/*`、`https://<project-id>.firebaseapp.com/*`、`http://localhost:*/*`)
    - **API の制限:** 上の3つのみ
 3. ローカルでは `.env` にキーを書く(`.env` はコミットされない)。
    ```bash
@@ -63,3 +63,13 @@ npm run deploy
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | Firebase のサービスアカウント鍵(JSON)。`firebase init hosting:github` で自動作成も可 |
 | Secret | `GOOGLE_MAPS_API_KEY` | Maps のキー |
 | Variable | `FIREBASE_PROJECT_ID` | Firebase のプロジェクト ID |
+
+### カスタムドメイン(zmap.ktrips.net)
+Firebase Hosting のカスタムドメインは、Firebase コンソールと DNS の操作が必要で、`firebase.json` やこのリポジトリのコードでは設定できない。次の手順で行う。
+
+1. 先にデプロイを済ませる(`npm run deploy` か GitHub Actions)。
+2. Firebase コンソール → **Hosting** → **ドメインを追加** → `zmap.ktrips.net` を入力。
+3. コンソールに表示される DNS レコード(所有権確認用の TXT と、A レコード)を、`ktrips.net` の DNS(レジストラ/DNS プロバイダ)に追加する。値は必ずコンソールに表示されたものを使う。
+4. 検証と SSL 証明書の発行を待つ(数分〜最大24時間程度)。完了すると https://zmap.ktrips.net で開ける。
+5. **Maps API キーのリファラ制限に追加する(重要):** Google Cloud コンソール → 認証情報 → 該当キー → HTTP リファラに
+   `https://zmap.ktrips.net/*` を追加する。忘れると、本番で地図が読み込めない。
