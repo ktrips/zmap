@@ -121,13 +121,53 @@ function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は�
     sc.onload=()=>ok(window.google.maps);sc.onerror=()=>ng(new Error("Google Maps の読み込みに失敗"));document.head.appendChild(sc);});
 }
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
-const ROUNDS=[
+let ROUNDS=[
  {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",num:"2丁目",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
  {zip:"100-0005",lon:139.764,lat:35.681,pref:"東京都",city:"千代田区",town:"丸の内",num:"1丁目",addr:"東京都千代田区丸の内1丁目",hue:30},
  {zip:"920-0961",lon:136.656,lat:36.561,pref:"石川県",city:"金沢市",town:"香林坊",num:"1丁目",addr:"石川県金沢市香林坊1丁目",hue:160},
  {zip:"730-0011",lon:132.459,lat:34.395,pref:"広島県",city:"広島市中区",town:"基町",num:"6丁目",addr:"広島県広島市中区基町6丁目",hue:350},
  {zip:"810-0001",lon:130.402,lat:33.591,pref:"福岡県",city:"福岡市中央区",town:"天神",num:"2丁目",addr:"福岡県福岡市中央区天神2丁目",hue:270}
 ];
+// ---- 郵便番号 → 座標(Geocoding API)で出題地点を生成。キー未設定/失敗時はダミー5件のまま ----
+const DUMMY_ROUNDS=ROUNDS.slice();
+const ZIP_POOL=["060-0042","040-0063","030-0801","020-0021","980-0021","010-0951","990-0042","960-8031","310-0011","320-0026","371-0026","330-0062","260-0013","100-0005","160-0023","150-0002","220-0011","950-0087","930-0005","920-0961","380-0834","400-0031","420-0853","460-0008","500-8833","510-0075","520-0043","600-8216","530-0001","650-0001","640-8227","680-0011","690-0887","700-0901","730-0011","750-0025","760-0017","790-0003","800-0031","810-0001","840-0801","850-0862","860-0001","870-0042","880-0001","890-0053","900-0015"];
+const JP_BOUNDS={lat:[24,46],lon:[122,146]};
+function parseJP(comps){ // address_components(language=ja)→ {pref,city,town,num}
+  const g=t=>{const c=comps.find(c=>c.types.includes(t));return c?c.long_name:"";};
+  const loc=g("locality"),ward=g("sublocality_level_1");
+  const city=loc&&ward&&!loc.endsWith("区")&&ward.endsWith("区")?loc+ward:(loc||ward);
+  return{pref:g("administrative_area_level_1"),city,town:g("sublocality_level_2")||g("sublocality_level_3")||"",num:g("sublocality_level_4")||g("premise")||""};
+}
+const hueOf=z=>[...z].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
+async function geocodeZip(geocoder,zip){
+  const res=await geocoder.geocode({address:zip,componentRestrictions:{country:"JP",postalCode:zip},language:"ja",region:"JP"});
+  const g=res.results&&res.results[0];if(!g)return null;
+  const lat=g.geometry.location.lat(),lon=g.geometry.location.lng();
+  if(lat<JP_BOUNDS.lat[0]||lat>JP_BOUNDS.lat[1]||lon<JP_BOUNDS.lon[0]||lon>JP_BOUNDS.lon[1])return null;
+  const a=parseJP(g.address_components||[]);
+  if(!a.pref||!a.city||!a.town)return null;
+  const num=a.num||"1丁目",stripped=g.formatted_address.replace(/^日本、?\s*〒?[\d-]*\s*/,"");
+  return{zip,lon,lat,pref:a.pref,city:a.city,town:a.town,num,addr:stripped||a.pref+a.city+a.town+num,hue:hueOf(zip)};
+}
+async function loadRoundsFromGeocoding(count=5){
+  const maps=await loadGoogleMaps();
+  const {Geocoder}=await maps.importLibrary("geocoding");
+  const geocoder=new Geocoder();
+  const pool=ZIP_POOL.slice().sort(()=>Math.random()-.5),got=[];
+  while(got.length<count&&pool.length){
+    const batch=pool.splice(0,count-got.length);
+    const rs=await Promise.all(batch.map(z=>geocodeZip(geocoder,z).catch(()=>null)));
+    rs.forEach(x=>x&&got.push(x));
+  }
+  if(got.length<count)throw new Error("Geocoding で必要な出題地点を取得できませんでした");
+  return got;
+}
+// 回答欄の選択肢に正解が必ず含まれるようにする(ダミー表にない地点用)
+function ensureOptions(q){
+  (PREFS["日本"]=PREFS["日本"]||[]);if(!PREFS["日本"].includes(q.pref))PREFS["日本"].push(q.pref);
+  const add=(m,k,v)=>{m[k]=m[k]||[];if(!m[k].includes(v))m[k].push(v);};
+  add(CITIES,q.pref,q.city);add(TOWNS,q.city,q.town);
+}
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
 const STAGE_BONUS=[2,1.6,1.3,1.1,1];   // ヒントが狭い段階で当てるほど大きい
@@ -227,6 +267,7 @@ const FLABEL={country:"国名",pref:"県名(都道府県・州)",city:"市区町
 const shuf=a=>a.slice().sort((x,y)=>((x.charCodeAt(0)*7+r*3)%13)-((y.charCodeAt(0)*7+r*3)%13));
 function opts(list){return `<option value="">選択してください</option>`+list.map(v=>`<option>${v}</option>`).join("");}
 function buildForm(){
+  ensureOptions(ROUNDS[r]);
   const f=FIELDS[curDiff];
   $("ans").innerHTML=f.map(k=>k==="num"?`<label class="full">${FLABEL[k]}<input id="a_num" inputmode="text" placeholder="例: 2丁目 / 2-3-1"></label>`:`<label class="${k==="town"||k==="city"?"":""}">${FLABEL[k]}<select id="a_${k}"></select></label>`).join("")+`<button id="submit" class="primary">回答する</button>`;
   const set=(k,list)=>{const el=$("a_"+k);if(el)el.innerHTML=opts(list);};
@@ -410,7 +451,15 @@ function startIntro(done){
   raf=requestAnimationFrame(frame);
 }
 $("keybadge").textContent=MAPS_KEY?"Maps APIキー: 設定済み":"Maps APIキー: 未設定(ダミー)";
-vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
+async function boot(){
+  if(MAPS_KEY){
+    $("keybadge").textContent="出題地点を取得中…";
+    try{ROUNDS=await loadRoundsFromGeocoding(5);$("keybadge").textContent="Maps APIキー: 設定済み(郵便番号→座標を取得)";$("dbadge").textContent="";}
+    catch(e){console.warn(e);ROUNDS=DUMMY_ROUNDS.slice();$("keybadge").textContent="Geocoding失敗: ダミー5地点で開始";}
+  }
+  vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
+}
+boot();
 $("replay").onclick=()=>{location.reload();};
 </script>
 </body>

@@ -37,7 +37,8 @@
    ```bash
    cp .env.example .env   # GOOGLE_MAPS_API_KEY=... を設定
    ```
-4. `npm run build` で `dist/config.js` にキーが書き出される。キー未設定でもダミーデータのデモとして動く(画面右上に「Maps APIキー: 設定済み/未設定」と表示)。
+4. `npm run build` で `dist/config.js` にキーが書き出される。キー未設定でもダミー5地点のデモとして動く(画面右上に「Maps APIキー: 設定済み/未設定」と表示)。
+   キー設定時は、日本の郵便番号プール(`demo/index.html` の `ZIP_POOL`)からランダムに選び、Geocoding API で座標・都道府県・市区町村・町域に変換して毎回5問を出題する。取得に失敗した場合はダミー5地点にフォールバックする。
 
 ## Firebase Hosting へのデプロイ
 公開ディレクトリは `dist/`(`scripts/build.sh` が `demo/` から生成)。
