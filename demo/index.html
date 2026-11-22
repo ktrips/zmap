@@ -112,8 +112,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script src="config.js"></script>
+<script src="map-style.js"></script>
 <script>
 // ---- Google Maps API キー(config.js 由来。未設定ならダミーデータのデモ) ----
+// ラベル非表示スタイルは map-style.js(ZMAP_MAP_STYLE.hideLabels)
 const MAPS_KEY=(window.ZMAP_CONFIG&&window.ZMAP_CONFIG.googleMapsApiKey)||"";
 function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は現状ダミーデータ)
   return new Promise((ok,ng)=>{if(window.google&&google.maps)return ok(google.maps);
