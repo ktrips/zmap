@@ -5,6 +5,7 @@
 
 - ステータス: 🔍 設計中(MVP 未着手)
 - 設計の詳細: [docs/design.md](docs/design.md)
+- デモ: [demo/index.html](demo/index.html)(ダミーデータ・API キー不要。ブラウザで開くだけ)
 - 由来: [ktrips/Aapp](https://github.com/ktrips/Aapp) のアイデア置き場(`ideas/zipcode-geoguessr.md`)から卒業
 
 ## ゲームの流れ(「ひろがれ!郵便番号」モード)
