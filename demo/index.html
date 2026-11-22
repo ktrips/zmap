@@ -27,6 +27,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .steps{display:flex;gap:6px;justify-content:center;padding:4px 8px 12px}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
 .bonus{text-align:center;font-size:14px;color:var(--mute);margin:-4px 0 8px}.bonus b{display:inline-block;background:var(--warn);color:#fff;border-radius:99px;padding:1px 12px;font-size:16px}
+.ans{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}.ans label{font-size:12px;color:var(--mute);display:flex;flex-direction:column;gap:2px}.ans select,.ans input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 8px;width:100%}.ans .full{grid-column:1/-1}.ans button{grid-column:1/-1}
 .steps i.on{background:var(--acc)}
 #sv{display:block;width:100%;height:240px;background:#9cc}
 #map{display:block;width:100%;height:auto;touch-action:manipulation;cursor:crosshair;background:var(--sea)}
@@ -65,6 +66,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
     <div id="bonus" class="bonus"></div>
+    <div id="ans" class="ans"></div>
     <div class="bar" style="justify-content:center;padding-bottom:12px">
       <button id="widen">ヒントを広げる(桁を1つ外す)</button>
       <button id="next" class="primary" style="display:none">次のラウンドへ</button>
@@ -72,14 +74,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
   </section>
 
   <section class="card">
-    <h2><span>地図(タップでピンを立てて回答)</span><span id="area"></span></h2>
+    <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
     <svg id="map" viewBox="0 0 400 480"></svg>
     <div class="info" id="hint"></div>
   </section>
 </div>
 
 <div class="msg" id="msg"></div>
-<p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選びます。当たれば「難易度の倍率 × 早撃ちボーナス」が得点、外れは0点。ヒントが狭い段階で当てるほどボーナスが大きく(7桁段階 ×2 → 最終段階 ×1)、全部外れなら0点、全部VEで最終段階に当てれば5点、全部VDなら25点、全部VDを最速で当てれば最大50点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
+<p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選び、ヒントを見ながら左の入力欄で答えます(国名 → 県名 → 市区町村 → 町名 → 番地の順に選択/入力、難易度に応じて必要な欄が増えます)。地図は目印のピンを立てて推理するのに使えます。当たれば「難易度の倍率 × 早撃ちボーナス」が得点、外れは0点。ヒントが狭い段階で当てるほどボーナスが大きく(7桁段階 ×2 → 最終段階 ×1)、全部外れなら0点、全部VEで最終段階に当てれば5点、全部VDなら25点、全部VDを最速で当てれば最大50点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
 ヒントは10秒ごとに自動で広がります。</p>
 </div>
 
@@ -87,11 +89,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <script>
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
 const ROUNDS=[
- {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
- {zip:"100-0005",lon:139.764,lat:35.681,pref:"東京都",city:"千代田区",town:"丸の内",addr:"東京都千代田区丸の内1丁目",hue:30},
- {zip:"920-0961",lon:136.656,lat:36.561,pref:"石川県",city:"金沢市",town:"香林坊",addr:"石川県金沢市香林坊1丁目",hue:160},
- {zip:"730-0011",lon:132.459,lat:34.395,pref:"広島県",city:"広島市中区",town:"基町",addr:"広島県広島市中区基町6丁目",hue:350},
- {zip:"810-0001",lon:130.402,lat:33.591,pref:"福岡県",city:"福岡市中央区",town:"天神",addr:"福岡県福岡市中央区天神2丁目",hue:270}
+ {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",num:"2丁目",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
+ {zip:"100-0005",lon:139.764,lat:35.681,pref:"東京都",city:"千代田区",town:"丸の内",num:"1丁目",addr:"東京都千代田区丸の内1丁目",hue:30},
+ {zip:"920-0961",lon:136.656,lat:36.561,pref:"石川県",city:"金沢市",town:"香林坊",num:"1丁目",addr:"石川県金沢市香林坊1丁目",hue:160},
+ {zip:"730-0011",lon:132.459,lat:34.395,pref:"広島県",city:"広島市中区",town:"基町",num:"6丁目",addr:"広島県広島市中区基町6丁目",hue:350},
+ {zip:"810-0001",lon:130.402,lat:33.591,pref:"福岡県",city:"福岡市中央区",town:"天神",num:"2丁目",addr:"福岡県福岡市中央区天神2丁目",hue:270}
 ];
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
@@ -158,21 +160,56 @@ function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)
 
 $("map").addEventListener("click",e=>{
   if(answered)return;
-  const svg=$("map"),rect=svg.getBoundingClientRect();
+  const rect=$("map").getBoundingClientRect();
   const x=vb.x+(e.clientX-rect.left)/rect.width*vb.w,y=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
   pin={lon:LON0+x/W*(LON1-LON0),lat:LAT1-y/H*(LAT1-LAT0)};
+  drawMap();   // ピンは目印(回答は右の入力欄から)
+});
+
+// ---- 回答フォーム(選択式 + 番地入力) ----
+const PREFS={
+ "日本":["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"],
+ "アメリカ":["カリフォルニア州","ニューヨーク州","テキサス州","フロリダ州"],
+ "イギリス":["イングランド","スコットランド","ウェールズ","北アイルランド"],
+ "インド":["デリー","マハラシュトラ州","カルナータカ州","タミル・ナードゥ州"]};
+const CITIES={"北海道":["札幌市中央区","札幌市北区","函館市","旭川市"],"東京都":["千代田区","港区","新宿区","渋谷区"],"石川県":["金沢市","小松市","七尾市","白山市"],"広島県":["広島市中区","広島市南区","福山市","呉市"],"福岡県":["福岡市中央区","福岡市博多区","北九州市小倉北区","久留米市"],"大阪府":["大阪市北区","大阪市中央区","堺市","豊中市"],"愛知県":["名古屋市中区","名古屋市中村区","豊田市","岡崎市"]};
+const TOWNS={"札幌市中央区":["北一条西","南一条東","大通西","宮の森"],"千代田区":["丸の内","大手町","神田","永田町"],"金沢市":["香林坊","片町","兼六町","武蔵町"],"広島市中区":["基町","紙屋町","八丁堀","白島"],"福岡市中央区":["天神","大名","赤坂","薬院"]};
+const NODATA="(デモ未収録)";
+const FIELDS={VE:["country"],Easy:["country","pref"],Mid:["country","pref","city"],Diff:["country","pref","city","town"],VD:["country","pref","city","town","num"]};
+const FLABEL={country:"国名",pref:"県名(都道府県・州)",city:"市区町村",town:"町名",num:"番地(例: 2丁目)"};
+const shuf=a=>a.slice().sort((x,y)=>((x.charCodeAt(0)*7+r*3)%13)-((y.charCodeAt(0)*7+r*3)%13));
+function opts(list){return `<option value="">選択してください</option>`+list.map(v=>`<option>${v}</option>`).join("");}
+function buildForm(){
+  const f=FIELDS[curDiff];
+  $("ans").innerHTML=f.map(k=>k==="num"?`<label class="full">${FLABEL[k]}<input id="a_num" inputmode="text" placeholder="例: 2丁目 / 2-3-1"></label>`:`<label class="${k==="town"||k==="city"?"":""}">${FLABEL[k]}<select id="a_${k}"></select></label>`).join("")+`<button id="submit" class="primary">回答する</button>`;
+  const set=(k,list)=>{const el=$("a_"+k);if(el)el.innerHTML=opts(list);};
+  set("country",shuf(Object.keys(PREFS)));set("pref",[]);set("city",[]);set("town",[]);
+  const cs=$("a_country"),ps=$("a_pref"),ci=$("a_city"),tw=$("a_town");
+  if(cs)cs.onchange=()=>{set("pref",PREFS[cs.value]||[]);set("city",[]);set("town",[]);};
+  if(ps)ps.onchange=()=>{set("city",CITIES[ps.value]?shuf(CITIES[ps.value]):(ps.value?[NODATA]:[]));set("town",[]);};
+  if(ci)ci.onchange=()=>{set("town",TOWNS[ci.value]?shuf(TOWNS[ci.value]):(ci.value?[NODATA]:[]));};
+  $("submit").onclick=submitAnswer;
+}
+const digits=t=>(String(t).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).match(/\d+/g)||[]).join("-");
+function submitAnswer(){
+  if(answered)return;
+  const q=ROUNDS[r],d=curDiff,f=FIELDS[d],v={};
+  for(const k of f){const el=$("a_"+k);v[k]=el?el.value.trim():"";}
+  if(f.some(k=>!v[k]||v[k]===NODATA)){$("msg").innerHTML="⚠ すべての欄を入力してください。";$("msg").classList.add("show");return;}
+  const truth={country:"日本",pref:q.pref,city:q.city,town:q.town};
+  const ok=f.every(k=>k==="num"?digits(v.num)===digits(q.num):v[k]===truth[k]);
   answered=true;clearInterval(timer);
-  const q=ROUNDS[r],d=curDiff,km=dist(pin.lon,pin.lat,q.lon,q.lat);
-  const hit=d==="VE"?inJapan(pin.lon,pin.lat):km<=DIFF[d].hit;
-  const bonus=STAGE_BONUS[stage],pts=hit?Math.round(DIFF[d].mult*bonus*10)/10:0;
-  total=Math.round((total+pts)*10)/10;results.push({d,hit,pts,stage});
+  f.forEach(k=>{const el=$("a_"+k);if(el)el.disabled=true;});$("submit").disabled=true;
+  const bonus=STAGE_BONUS[stage],pts=ok?Math.round(DIFF[d].mult*bonus*10)/10:0;
+  total=Math.round((total+pts)*10)/10;results.push({d,hit:ok,pts,stage});
   const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
-  $("msg").innerHTML=hit?`🎯 <b>当たり! +${fmt(pts)}点</b>(${DIFF[d].label}: ${ans}) ${DIFF[d].mult} × 早撃ちボーナス ×${bonus}${stage===0?" ⚡最速!":""}`:`❌ <b>外れ 0点</b> 正解は ${ans}(約${km.toFixed(1)}km 離れています)`;
+  const wrong=f.filter(k=>k==="num"?digits(v.num)!==digits(q.num):v[k]!==truth[k]).map(k=>FLABEL[k].replace(/(.*)/,"$1").split("(")[0]);
+  $("msg").innerHTML=ok?`🎯 <b>当たり! +${fmt(pts)}点</b>(${DIFF[d].label}: ${ans}) ${DIFF[d].mult} × 早撃ちボーナス ×${bonus}${stage===0?" ⚡最速!":""}`:`❌ <b>外れ 0点</b> 違った項目: ${wrong.join("・")} / 正解は ${ans}`;
   $("msg").classList.add("show");
   $("widen").disabled=true;$("next").style.display="";
   $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
   render();setVB(vbFor(stage,true));
-});
+}
 $("widen").onclick=widen;
 function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
 $("next").onclick=()=>{
@@ -200,7 +237,7 @@ function startIntro(done){
   intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
   $("title").innerHTML=`ダーツ ${r+1} / ${ROUNDS.length}<small>難易度を選んで、地球儀にダーツを投げよう</small>`;
   $("ctrl").style.display="flex";
-  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";hint();render();done();};
+  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";buildForm();hint();render();done();};
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
   $("skip").onclick=()=>{curDiff=$("idiff").value;finish();};
   $("throw").onclick=()=>{
