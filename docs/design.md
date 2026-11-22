@@ -84,3 +84,8 @@ TypeScript + Vite + Google Maps JavaScript API。静的ホスティング(サー
 - VD の部分点の配点と、住所表記ゆれ(丁目・番地・建物名)の正規化。
 - API 課金の上限管理と、無料枠に収める出題数。
 - マルチプレイ(同じ問題で順位競争)の優先度。
+
+## Google Map のラベル非表示スタイル(#4 / #8)
+地図ラベル(地名・道路名・施設名・駅名)は答えのヒントになるため、Map 生成時に `styles` で非表示にする。
+`demo/index.html` の `MAP_STYLES` / `createGoogleMap()` が実装。Map は必ずこの関数で生成する。
+デモは Google Map 未接続のため、API キー設定後に `createGoogleMap(el,{center,zoom})` で見た目を確認する(`?mapstyle=off` でスタイル無効の比較が可能)。

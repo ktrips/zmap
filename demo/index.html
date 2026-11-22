@@ -120,6 +120,23 @@ function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は�
     const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding`;
     sc.onload=()=>ok(window.google.maps);sc.onerror=()=>ng(new Error("Google Maps の読み込みに失敗"));document.head.appendChild(sc);});
 }
+// ---- Google Map のラベル非表示スタイル(地名・道路名・施設名が答えのヒントになるため) ----
+// デモは Google Map 未接続。本番で Map を生成する際は createGoogleMap() を使い、必ず styles を適用する。
+const MAP_STYLES=[
+ {featureType:"all",elementType:"labels",stylers:[{visibility:"off"}]},      // 全ラベル(地名・道路名・番地)
+ {featureType:"poi",stylers:[{visibility:"off"}]},                           // 施設(店名など)
+ {featureType:"transit",stylers:[{visibility:"off"}]},                       // 駅・路線名
+ {featureType:"administrative",elementType:"geometry.stroke",stylers:[{visibility:"off"}]} // 行政界線(県・市の境界)
+];
+async function createGoogleMap(el,opts){
+  const maps=await loadGoogleMaps();
+  return new maps.Map(el,{
+    disableDefaultUI:true,clickableIcons:false,gestureHandling:"greedy",
+    ...opts,
+    styles:MAP_STYLES // 見た目確認: ?mapstyle=off でスタイル無効にして比較できる
+      .filter(()=>new URLSearchParams(location.search).get("mapstyle")!=="off")
+  });
+}
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
 const ROUNDS=[
  {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",num:"2丁目",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
