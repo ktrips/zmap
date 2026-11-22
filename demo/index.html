@@ -76,6 +76,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <h1>zmap <span class="badge">デモ(ダミーデータ)</span></h1>
   <div class="bar">
     <span id="dbadge" class="badge"></span>
+    <span id="keybadge" class="badge"></span>
     <button id="replay" title="オープニングをもう一度">▶ 最初から</button>
     <span id="round" class="badge"></span>
     <span id="total" class="badge"></span>
@@ -110,7 +111,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 
 <div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
+<script src="config.js"></script>
 <script>
+// ---- Google Maps API キー(config.js 由来。未設定ならダミーデータのデモ) ----
+const MAPS_KEY=(window.ZMAP_CONFIG&&window.ZMAP_CONFIG.googleMapsApiKey)||"";
+function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は現状ダミーデータ)
+  return new Promise((ok,ng)=>{if(window.google&&google.maps)return ok(google.maps);
+    const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding`;
+    sc.onload=()=>ok(window.google.maps);sc.onerror=()=>ng(new Error("Google Maps の読み込みに失敗"));document.head.appendChild(sc);});
+}
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
 const ROUNDS=[
  {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",num:"2丁目",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
@@ -400,6 +409,7 @@ function startIntro(done){
   }
   raf=requestAnimationFrame(frame);
 }
+$("keybadge").textContent=MAPS_KEY?"Maps APIキー: 設定済み":"Maps APIキー: 未設定(ダミー)";
 vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
 $("replay").onclick=()=>{location.reload();};
 </script>

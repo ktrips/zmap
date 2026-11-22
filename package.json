@@ -1,0 +1,10 @@
+{
+  "name": "zmap",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "serve": "npm run build && npx --yes firebase-tools@13 emulators:start --only hosting",
+    "deploy": "npm run build && npx --yes firebase-tools@13 deploy --only hosting"
+  }
+}
