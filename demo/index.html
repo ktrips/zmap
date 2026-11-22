@@ -109,18 +109,23 @@ const ISLANDS=[
  [[132.4,33.3],[132.7,34.1],[134.4,34.2],[134.6,33.7],[133.3,33.0]]
 ];
 
+const VIEW_KM=[4,10,36,130,900];   // 各段階で見える縦方向の範囲(km)
+let vb={x:0,y:0,w:W,h:H},vbAnim=null;
+function vbFor(stg,full){const q=ROUNDS[r],[cx,cy]=px(q.lon,q.lat);if(full)return{x:0,y:0,w:W,h:H};const hh=VIEW_KM[stg]/kmPerPx,ww=hh*W/H;return{x:cx-ww/2,y:cy-hh/2,w:ww,h:hh};}
+function setVB(t,instant){cancelAnimationFrame(vbAnim);if(instant){vb=t;drawMap();return;}const a={...vb},t0=performance.now();(function f(n){const k=Math.min(1,(n-t0)/700),e=1-Math.pow(1-k,3);vb={x:a.x+(t.x-a.x)*e,y:a.y+(t.y-a.y)*e,w:a.w+(t.w-a.w)*e,h:a.h+(t.h-a.h)*e};drawMap();if(k<1)vbAnim=requestAnimationFrame(f);})(t0);}
 let r=0,stage=0,answered=false,total=0,timer=null,pin=null;
 const $=id=>document.getElementById(id);
 const svNS="http://www.w3.org/2000/svg";
 
 function drawMap(){
-  const m=$("map");
-  let s=ISLANDS.map(p=>`<polygon points="${p.map(([a,b])=>px(a,b).join(",")).join(" ")}" fill="var(--land)" stroke="var(--mute)" stroke-width="1" opacity=".9"/>`).join("");
+  const m=$("map");m.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const u=vb.w/W;
+  let s=ISLANDS.map(p=>`<polygon points="${p.map(([a,b])=>px(a,b).join(",")).join(" ")}" fill="var(--land)" stroke="var(--mute)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`).join("");
   const q=ROUNDS[r],[cx,cy]=px(q.lon,q.lat);
-  const rad=Math.max(5,RADIUS_KM[stage]/kmPerPx);
-  s+=`<circle cx="${cx}" cy="${cy}" r="${rad}" fill="var(--ring)" fill-opacity=".22" stroke="var(--ring)" stroke-width="2"/>`;
-  if(pin){const [a,b]=px(pin.lon,pin.lat);s+=`<circle cx="${a}" cy="${b}" r="6" fill="#e11d48" stroke="#fff" stroke-width="2"/>`;
-    if(answered)s+=`<line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" stroke="#e11d48" stroke-dasharray="4 3"/><circle cx="${cx}" cy="${cy}" r="5" fill="#16a34a" stroke="#fff" stroke-width="2"/>`;}
+  const rad=RADIUS_KM[stage]/kmPerPx;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${rad}" fill="var(--ring)" fill-opacity=".22" stroke="var(--ring)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  if(pin){const [a,b]=px(pin.lon,pin.lat);s+=`<circle cx="${a}" cy="${b}" r="${6*u}" fill="#e11d48" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    if(answered)s+=`<line x1="${a}" y1="${b}" x2="${cx}" y2="${cy}" stroke="#e11d48" stroke-width="2" vector-effect="non-scaling-stroke" stroke-dasharray="4 3"/><circle cx="${cx}" cy="${cy}" r="${5*u}" fill="#16a34a" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;}
   m.innerHTML=s;
 }
 function drawSV(){
@@ -146,14 +151,14 @@ function drawZip(){
 }
 function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${total}点`;}
 function schedule(){clearInterval(timer);timer=setInterval(()=>{if(!answered)widen();},10000);}
-function widen(){if(answered||stage>=4)return;stage++;render();hint();}
+function widen(){if(answered||stage>=4)return;stage++;render();setVB(vbFor(stage));hint();}
 function hint(){const d=$("diff").value;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / ×${DIFF[d].mult})</span><span>段階ボーナス <b>×${STAGE_BONUS[stage]}</b></span>`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
   if(answered)return;
   const svg=$("map"),rect=svg.getBoundingClientRect();
-  const x=(e.clientX-rect.left)/rect.width*W,y=(e.clientY-rect.top)/rect.height*H;
+  const x=vb.x+(e.clientX-rect.left)/rect.width*vb.w,y=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
   pin={lon:LON0+x/W*(LON1-LON0),lat:LAT1-y/H*(LAT1-LAT0)};
   answered=true;clearInterval(timer);
   const q=ROUNDS[r],d=$("diff").value,km=dist(pin.lon,pin.lat,q.lon,q.lat);
@@ -168,7 +173,7 @@ $("map").addEventListener("click",e=>{
   $("msg").classList.add("show");
   $("widen").disabled=true;$("next").style.display="";
   $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のラウンドへ";
-  render();
+  render();setVB(vbFor(stage,true));
 });
 $("widen").onclick=widen;
 $("diff").onchange=hint;
@@ -176,7 +181,7 @@ $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
     $("msg").innerHTML=`<b>ゲーム終了</b> 合計 ${total}点 / 難易度 ${$("diff").value}<br>共有文: 🟩🟩🟨⬜⬜ zmap ${total}点`;
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
-  r++;stage=0;answered=false;pin=null;$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
+  r++;stage=0;answered=false;pin=null;vb=vbFor(0);$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
   render();hint();schedule();
 };
 
@@ -300,7 +305,7 @@ function startIntro(done){
   }
   raf=requestAnimationFrame(frame);
 }
-render();hint();startIntro(schedule);
+vb=vbFor(0);render();hint();startIntro(schedule);
 $("replay").onclick=()=>{location.reload();};
 </script>
 </body>
