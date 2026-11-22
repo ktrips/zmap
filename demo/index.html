@@ -101,6 +101,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <section class="card">
     <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
     <svg id="map" viewBox="0 0 400 480"></svg>
+    <div id="gmap" style="display:none;width:100%;height:360px"></div>
+    <div class="info" id="pinst" style="display:none"></div>
     <div class="info" id="hint"></div>
   </section>
 </div>
@@ -154,6 +156,7 @@ const $=id=>document.getElementById(id);
 const svNS="http://www.w3.org/2000/svg";
 
 function drawMap(){
+  if(typeof syncGM==='function')syncGM();
   const m=$("map");m.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const u=vb.w/W;
   let s=ISLANDS.map(p=>`<polygon points="${p.map(([a,b])=>px(a,b).join(",")).join(" ")}" fill="var(--land)" stroke="var(--mute)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`).join("");
@@ -210,8 +213,82 @@ $("map").addEventListener("click",e=>{
   const rect=$("map").getBoundingClientRect();
   const x=vb.x+(e.clientX-rect.left)/rect.width*vb.w,y=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
   pin={lon:LON0+x/W*(LON1-LON0),lat:LAT1-y/H*(LAT1-LAT0)};
-  drawMap();   // ピンは目印(回答は右の入力欄から)
+  drawMap();
+  reverseAndFill(pin.lat,pin.lon);
 });
+
+
+// ---- Google Map モード + 逆ジオコーディング(ピン → 住所 → 回答欄の自動入力) ----
+let gm=null,gmap=null,gmMarker=null,gmCircle=null,gmTruth=null,gmLine=null,geocoder=null,reverseSeq=0;
+const GM_ZOOM=[15,13,11,9,6];
+// Geocoding API の結果(address_components)を 国/県/市区町村/町名/番地 に整える
+function parseComponents(comps){
+  const g=t=>{const c=comps.find(x=>x.types.includes(t));return c?c.long_name:"";};
+  const country=g("country");
+  const loc=g("locality"),ward=g("sublocality_level_1");
+  const city=(loc&&ward&&/市$/.test(loc)&&/区$/.test(ward))?loc+ward:(loc||ward||g("administrative_area_level_2"));
+  const town=g("sublocality_level_2")||g("sublocality")||g("neighborhood");
+  const num=[g("sublocality_level_3"),g("sublocality_level_4"),g("premise")].filter(Boolean).join("-");
+  return {country:country==="Japan"?"日本":country,pref:g("administrative_area_level_1"),city,town,num};
+}
+// デモ(キー未設定)用の簡易逆引き: 最寄りの固定地点が25km以内ならその住所
+function localReverse(lat,lon){
+  let best=null,bd=1e9;for(const q of ROUNDS){const d=dist(lon,lat,q.lon,q.lat);if(d<bd){bd=d;best=q;}}
+  if(inJapan(lon,lat)&&best&&bd<=25)return {country:"日本",pref:best.pref,city:best.city,town:best.town,num:bd<=DIFF.VD.hit?best.num:""};
+  return inJapan(lon,lat)?{country:"日本",pref:"",city:"",town:"",num:""}:null;
+}
+function setPinStatus(t,warn){const el=$("pinst");el.style.display="";el.innerHTML=t;el.style.color=warn?"var(--warn)":"";}
+function ensureOpt(el,v){if(![...el.options].some(o=>o.value===v)){const o=document.createElement("option");o.textContent=v;o.value=v;el.appendChild(o);}el.value=v;}
+function fillFromAddress(a){
+  for(const k of FIELDS[curDiff]){
+    const el=$("a_"+k);if(!el||el.disabled)continue;
+    if(k==="num"){el.value=a.num||"";continue;}
+    if(!a[k])break;                       // 取れなかった階層以降は空のまま(手動で選べる)
+    ensureOpt(el,a[k]);
+    if(el.onchange)el.onchange();         // 下位の選択肢を作り直す
+    if(el.value!==a[k])ensureOpt(el,a[k]);
+  }
+}
+function reverseAndFill(lat,lon){
+  if(answered)return;
+  const seq=++reverseSeq;
+  const done=a=>{if(seq!==reverseSeq||answered)return;
+    if(!a){setPinStatus("📍 この場所の住所を判定できませんでした(海上・国外など)",true);return;}
+    fillFromAddress(a);
+    setPinStatus(`📍 ピンの住所: <b>${[a.country,a.pref,a.city,a.town,a.num].filter(Boolean).join(" ")}</b> — 回答欄に自動入力しました。「回答する」で判定します`);};
+  if(!geocoder){setPinStatus("📍 逆ジオコーディング中(デモの簡易判定)…");done(localReverse(lat,lon));return;}
+  setPinStatus("📍 住所を判定中…");
+  geocoder.geocode({location:{lat,lng:lon},language:"ja"}).then(res=>{
+    const r0=(res.results||[]).map(x=>parseComponents(x.address_components)).sort((x,y)=>Object.values(y).filter(Boolean).length-Object.values(x).filter(Boolean).length)[0];
+    done(r0||null);
+  }).catch(e=>{if(seq===reverseSeq)setPinStatus("📍 逆ジオコーディングに失敗しました: "+(e&&e.code||e),true);});
+}
+function syncGM(){
+  if(!gmap)return;
+  const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
+  gmCircle.setCenter(c);gmCircle.setRadius(RADIUS_KM[stage]*1000);
+  if(answered){gmap.fitBounds(new gm.LatLngBounds(c,pin?{lat:pin.lat,lng:pin.lon}:c),60);
+    gmTruth=gmTruth||new gm.Marker({map:gmap,icon:{path:gm.SymbolPath.CIRCLE,scale:8,fillColor:"#16a34a",fillOpacity:1,strokeColor:"#fff",strokeWeight:2}});gmTruth.setPosition(c);gmTruth.setMap(gmap);
+    if(pin){gmLine=gmLine||new gm.Polyline({map:gmap,strokeColor:"#e11d48",strokeWeight:2});gmLine.setPath([{lat:pin.lat,lng:pin.lon},c]);gmLine.setMap(gmap);}
+  }else{
+    if(gmTruth)gmTruth.setMap(null);if(gmLine)gmLine.setMap(null);
+    gmap.panTo(c);gmap.setZoom(GM_ZOOM[stage]);
+  }
+  if(pin){gmMarker.setPosition({lat:pin.lat,lng:pin.lon});gmMarker.setMap(gmap);}else gmMarker.setMap(null);
+}
+async function initGoogleMap(){
+  if(!MAPS_KEY)return;
+  try{
+    gm=await loadGoogleMaps();
+    gmap=new gm.Map($("gmap"),{center:{lat:ROUNDS[r].lat,lng:ROUNDS[r].lon},zoom:GM_ZOOM[0],streetViewControl:false,mapTypeControl:false,fullscreenControl:false,clickableIcons:false,gestureHandling:"greedy"});
+    gmMarker=new gm.Marker({position:{lat:0,lng:0}});
+    gmCircle=new gm.Circle({map:gmap,fillColor:"#0b7a5c",fillOpacity:.22,strokeColor:"#0b7a5c",strokeWeight:2,clickable:false});
+    geocoder=new gm.Geocoder();
+    gmap.addListener("click",e=>{if(answered)return;pin={lat:e.latLng.lat(),lon:e.latLng.lng()};syncGM();reverseAndFill(pin.lat,pin.lon);});
+    $("map").style.display="none";$("gmap").style.display="block";
+    syncGM();
+  }catch(e){gm=null;gmap=null;geocoder=null;setPinStatus("Google Map を読み込めなかったため簡易地図で動作します",true);}
+}
 
 // ---- 回答フォーム(選択式 + 番地入力) ----
 const PREFS={
@@ -237,7 +314,9 @@ function buildForm(){
   if(ci)ci.onchange=()=>{set("town",TOWNS[ci.value]?shuf(TOWNS[ci.value]):(ci.value?[NODATA]:[]));};
   $("submit").onclick=submitAnswer;
 }
-const digits=t=>(String(t).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).match(/\d+/g)||[]).join("-");
+const KN={"〇":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9};
+const kan2n=t=>String(t).replace(/[一二三四五六七八九]?十?[一二三四五六七八九]?(?=丁目|番|号|$)/g,m=>{if(!m)return m;let n=0,t10=m.indexOf("十");if(t10<0)return String(KN[m]);n=(t10>0?KN[m[0]]:1)*10+(m.length>t10+1?KN[m[t10+1]]:0);return String(n);});
+const digits=t=>(kan2n(String(t)).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).match(/\d+/g)||[]).join("-");
 function showResult(html,cls,confetti){
   const el=$("result");el.className="result show "+cls;el.innerHTML=html;
   if(confetti){const cols=["#ef4444","#3b82f6","#10b981","#f59e0b","#a855f7","#ec4899"];
@@ -274,7 +353,7 @@ $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
     showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点)<br>${results.map(x=>(x.hit?(x.stage===0?"🟨":"🟩"):"⬜")+x.d).join(" ")}<br>共有文: zmap ${fmt(total)}点 ${results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜").join("")}</div>`,"final",total>0);
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
-  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
+  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;reverseSeq++;$('pinst').style.display='none';vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
   render();startIntro(()=>{hint();schedule();});
 };
 
@@ -410,7 +489,7 @@ function startIntro(done){
   raf=requestAnimationFrame(frame);
 }
 $("keybadge").textContent=MAPS_KEY?"Maps APIキー: 設定済み":"Maps APIキー: 未設定(ダミー)";
-vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
+vb=vbFor(0);render();hint();initGoogleMap();startIntro(()=>{hint();schedule();});
 $("replay").onclick=()=>{location.reload();};
 </script>
 </body>
