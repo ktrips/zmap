@@ -38,6 +38,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #intro{position:fixed;inset:0;z-index:10;background:#0a1220;display:block}
 #intro canvas{position:absolute;inset:0;width:100%;height:100%}
 #skip{position:absolute;right:16px;bottom:16px;z-index:11;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
+#ctrl{position:absolute;left:0;right:0;bottom:7%;z-index:11;display:flex;gap:10px;justify-content:center;align-items:center}
+#ctrl select{background:#fff;color:#111;font-size:16px;padding:10px 12px}
+#ctrl button{font-size:18px;padding:10px 24px}
 #title{position:absolute;left:0;right:0;top:6%;text-align:center;color:#fff;font:700 26px system-ui;letter-spacing:.1em;z-index:11;text-shadow:0 2px 12px #000}
 #title small{display:block;font:13px system-ui;opacity:.75;letter-spacing:.05em;margin-top:4px}
 </style>
@@ -47,15 +50,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <header>
   <h1>zmap <span class="badge">デモ(ダミーデータ)</span></h1>
   <div class="bar">
-    <label>難易度
-      <select id="diff">
-        <option value="VE">VE(国)</option>
-        <option value="Easy">Easy(県)</option>
-        <option value="Mid" selected>Mid(市)</option>
-        <option value="Diff">Difficult(町域)</option>
-        <option value="VD">VD(完全な住所)</option>
-      </select>
-    </label>
+    <span id="dbadge" class="badge"></span>
     <button id="replay" title="オープニングをもう一度">▶ 最初から</button>
     <span id="round" class="badge"></span>
     <span id="total" class="badge"></span>
@@ -82,11 +77,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 </div>
 
 <div class="msg" id="msg"></div>
-<p class="note">デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
+<p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選びます。当たれば難易度の倍率がそのまま得点、外れは0点で、全部外れなら0点、全部VEで当てれば5点、全部VDで当てれば25点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
 ヒントは10秒ごとに自動で広がります。</p>
 </div>
 
-<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><button id="skip">スキップ</button></div>
+<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script>
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
 const ROUNDS=[
@@ -97,8 +92,9 @@ const ROUNDS=[
  {zip:"810-0001",lon:130.402,lat:33.591,pref:"福岡県",city:"福岡市中央区",town:"天神",addr:"福岡県福岡市中央区天神2丁目",hue:270}
 ];
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
-const STAGE_BONUS=[1,.85,.7,.5,.3];
-const DIFF={VE:{mult:1,tol:1500,label:"国"},Easy:{mult:2,tol:600,label:"県"},Mid:{mult:3,tol:200,label:"市"},Diff:{mult:4,tol:40,label:"町域"},VD:{mult:5,tol:5,label:"住所"}};
+const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
+let curDiff="Mid";
+function inJapan(lon,lat){return ISLANDS.some(poly=>{let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c;}return c;});}
 const LON0=128,LON1=146,LAT0=30,LAT1=46,W=400,H=480,KX=Math.cos(38*Math.PI/180);
 const px=(lon,lat)=>[(lon-LON0)/(LON1-LON0)*W,(LAT1-lat)/(LAT1-LAT0)*H];
 const kmPerPx=(111*(LAT1-LAT0))/H;
@@ -113,6 +109,7 @@ const VIEW_KM=[4,10,36,130,900];   // 各段階で見える縦方向の範囲(km
 let vb={x:0,y:0,w:W,h:H},vbAnim=null;
 function vbFor(stg,full){const q=ROUNDS[r],[cx,cy]=px(q.lon,q.lat);if(full)return{x:0,y:0,w:W,h:H};const hh=VIEW_KM[stg]/kmPerPx,ww=hh*W/H;return{x:cx-ww/2,y:cy-hh/2,w:ww,h:hh};}
 function setVB(t,instant){cancelAnimationFrame(vbAnim);if(instant){vb=t;drawMap();return;}const a={...vb},t0=performance.now();(function f(n){const k=Math.min(1,(n-t0)/700),e=1-Math.pow(1-k,3);vb={x:a.x+(t.x-a.x)*e,y:a.y+(t.y-a.y)*e,w:a.w+(t.w-a.w)*e,h:a.h+(t.h-a.h)*e};drawMap();if(k<1)vbAnim=requestAnimationFrame(f);})(t0);}
+const results=[];
 let r=0,stage=0,answered=false,total=0,timer=null,pin=null;
 const $=id=>document.getElementById(id);
 const svNS="http://www.w3.org/2000/svg";
@@ -152,7 +149,7 @@ function drawZip(){
 function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${total}点`;}
 function schedule(){clearInterval(timer);timer=setInterval(()=>{if(!answered)widen();},10000);}
 function widen(){if(answered||stage>=4)return;stage++;render();setVB(vbFor(stage));hint();}
-function hint(){const d=$("diff").value;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / ×${DIFF[d].mult})</span><span>段階ボーナス <b>×${STAGE_BONUS[stage]}</b></span>`;}
+function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると +${DIFF[d].mult}点)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
@@ -161,28 +158,25 @@ $("map").addEventListener("click",e=>{
   const x=vb.x+(e.clientX-rect.left)/rect.width*vb.w,y=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
   pin={lon:LON0+x/W*(LON1-LON0),lat:LAT1-y/H*(LAT1-LAT0)};
   answered=true;clearInterval(timer);
-  const q=ROUNDS[r],d=$("diff").value,km=dist(pin.lon,pin.lat,q.lon,q.lat);
-  const base=Math.max(0,Math.round(1000*Math.exp(-km/DIFF[d].tol)));
-  const pts=Math.round(base*STAGE_BONUS[stage]*DIFF[d].mult/ (d==="VE"?1:1));
-  total+=pts;
-  let judge="";
-  if(d==="VE")judge="国は日本です。正解!";
-  else if(d==="VD")judge=km<DIFF.VD.tol?"住所まで一致!":`正解の住所: ${q.addr}(約${km.toFixed(1)}km 離れています)`;
-  else judge=`正解は ${q.pref}${q.city}${d==="Diff"?" "+q.town:""}(約${km.toFixed(1)}km 離れています)`;
-  $("msg").innerHTML=`<b>${pts}点</b> 獲得(距離スコア ${base} × 段階 ${STAGE_BONUS[stage]} × 難易度 ${DIFF[d].mult})<br>${judge}`;
+  const q=ROUNDS[r],d=curDiff,km=dist(pin.lon,pin.lat,q.lon,q.lat);
+  const hit=d==="VE"?inJapan(pin.lon,pin.lat):km<=DIFF[d].hit;
+  const pts=hit?DIFF[d].mult:0;
+  total+=pts;results.push({d,hit,pts});
+  const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
+  $("msg").innerHTML=hit?`🎯 <b>当たり! +${pts}点</b>(${DIFF[d].label}: ${ans})`:`❌ <b>外れ 0点</b> 正解は ${ans}(約${km.toFixed(1)}km 離れています)`;
   $("msg").classList.add("show");
   $("widen").disabled=true;$("next").style.display="";
-  $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のラウンドへ";
+  $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
   render();setVB(vbFor(stage,true));
 });
 $("widen").onclick=widen;
-$("diff").onchange=hint;
+function rating(t){return t>=25?"パーフェクト!":t>=18?"達人":t>=10?"上級者":t>=5?"中級者":t>=1?"ビギナー":"全部外れ…"}
 $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
-    $("msg").innerHTML=`<b>ゲーム終了</b> 合計 ${total}点 / 難易度 ${$("diff").value}<br>共有文: 🟩🟩🟨⬜⬜ zmap ${total}点`;
+    $("msg").innerHTML=`<b>ゲーム終了 ${total} / 25点</b>(${rating(total)})<br>${results.map(x=>(x.hit?"🟩":"⬜")+x.d).join(" ")}<br>共有文: zmap ${total}/25 ${results.map(x=>x.hit?"🟩":"⬜").join("")}`;
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
-  r++;stage=0;answered=false;pin=null;vb=vbFor(0);$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
-  render();hint();schedule();
+  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;vb=vbFor(0);$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
+  render();startIntro(()=>{hint();schedule();});
 };
 
 // ---- オープニング: 地球儀 → ダーツ → ズームイン ----
@@ -198,15 +192,26 @@ const LAND=[
 const D2R=Math.PI/180,TILT=22*D2R;
 function startIntro(done){
   const intro=$("intro"),cv=$("ic"),ctx=cv.getContext("2d");
-  let finished=false,raf;
-  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);intro.style.display="none";done();};
-  $("skip").onclick=finish;
-  if(matchMedia("(prefers-reduced-motion: reduce)").matches){finish();return;}
+  let finished=false,raf,tThrow=null,a0=0,l0F=0,curL0=0;
+  intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
+  $("title").innerHTML=`ダーツ ${r+1} / ${ROUNDS.length}<small>難易度を選んで、地球儀にダーツを投げよう</small>`;
+  $("ctrl").style.display="flex";
+  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";hint();render();done();};
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  $("skip").onclick=()=>{curDiff=$("idiff").value;finish();};
+  $("throw").onclick=()=>{
+    if(tThrow!==null)return;
+    curDiff=$("idiff").value;
+    if(reduce){finish();return;}
+    $("ctrl").style.display="none";
+    tThrow=(performance.now()-start)/1000;a0=curL0;
+    l0F=ROUNDS[r].lon+360*Math.ceil((a0+300-ROUNDS[r].lon)/360);
+  };
   const q=ROUNDS[r];
   let w,h,dpr;
   function size(){dpr=window.devicePixelRatio||1;w=innerWidth;h=innerHeight;cv.width=w*dpr;cv.height=h*dpr;}
   size();addEventListener("resize",size);
-  const T_STOP=3.0,T_THROW=1.9,T_HIT=3.0,T_ZOOM=4.4;
+  const T_REL=0.2,T_HIT=1.15,T_ZOOM=T_HIT+0.4+1.5;
   const ease=p=>1-Math.pow(1-p,3);
   // 正射影(緯度φ,経度λ,中心経度λ0)
   function proj(lon,lat,l0,cx,cy,R){
@@ -219,17 +224,17 @@ function startIntro(done){
   }
   const start=performance.now();
   function frame(now){
-    const t=(now-start)/1000;
+    const t=(now-start)/1000;const tau=tThrow===null?-1:t-tThrow;
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.clearRect(0,0,w,h);
     // 背景(星)
     ctx.fillStyle="#0a1220";ctx.fillRect(0,0,w,h);
     for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,"+(0.3+0.5*((i*37)%10)/10)+")";ctx.fillRect((i*131)%w,(i*71)%h,1.5,1.5);}
     const R=Math.min(w*0.9,h)*0.3,cx=w*0.62,cy=h*0.52;
-    const p=Math.min(1,t/T_STOP);
-    const l0=q.lon-1080*(1-ease(p));
+    const l0=tau<0?70*t:a0+(l0F-a0)*ease(Math.min(1,tau/T_HIT));
+    curL0=l0;
     const tp=proj(q.lon,q.lat,q.lon,cx,cy,R);   // 停止時の的の位置
-    const zp=t<T_HIT?0:Math.min(1,(t-T_HIT-0.4)/(T_ZOOM-T_HIT-0.4));
+    const zp=tau<T_HIT+0.4?0:Math.min(1,(tau-T_HIT-0.4)/(T_ZOOM-T_HIT-0.4));
     const sc=zp>0?Math.exp(Math.log(45)*zp*zp):1;
     ctx.save();
     if(sc>1){ctx.translate(tp[0],tp[1]);ctx.scale(sc,sc);ctx.translate(-tp[0],-tp[1]);}
@@ -259,8 +264,8 @@ function startIntro(done){
     ctx.fillRect(cx-R*.05,cy+R*.9,R*.1,R*.2);
     // 人物
     const px0=w*0.2,py0=h*0.78,u=Math.min(w,h)/700;
-    const thr=Math.max(0,Math.min(1,(t-T_THROW)/0.25));
-    const armA=-2.2+ (thr<1? (thr*2.6): 2.6) -(t<T_THROW? Math.sin(t*6)*0.05:0);
+    const thr=Math.max(0,Math.min(1,tau/0.25));
+    const armA=-2.2+ (thr<1? (thr*2.6): 2.6) -(tau<0? Math.sin(t*6)*0.05:0);
     const hand=[px0+Math.cos(armA)*60*u+0, py0-120*u+Math.sin(armA)*60*u];
     ctx.save();
     ctx.lineCap="round";
@@ -282,30 +287,30 @@ function startIntro(done){
       ctx.restore();
     }
     const du=Math.max(1,u*1.3);
-    if(t<T_THROW+0.12){ // 構え中のダーツ
+    if(tau<T_REL){ // 構え中のダーツ
       dart(hand[0]+14*u,hand[1]-6*u,-0.15,du*.7);
-    }else if(t<T_HIT){
-      const f=(t-T_THROW-0.12)/(T_HIT-T_THROW-0.12);
+    }else if(tau<T_HIT){
+      const f=(tau-T_REL)/(T_HIT-T_REL);
       const sx=hand[0]+14*u,sy=hand[1]-6*u;
       const x=sx+(tp[0]-sx)*f,y=sy+(tp[1]-sy)*f-Math.sin(f*Math.PI)*90*u;
       const nx=sx+(tp[0]-sx)*(f+.02),ny=sy+(tp[1]-sy)*(f+.02)-Math.sin((f+.02)*Math.PI)*90*u;
       dart(x,y,Math.atan2(ny-y,nx-x),du*(1-.3*f));
     }else{
-      const wob=Math.sin((t-T_HIT)*40)*Math.exp(-(t-T_HIT)*8)*0.12;
+      const wob=Math.sin((tau-T_HIT)*40)*Math.exp(-(tau-T_HIT)*8)*0.12;
       dart(tp[0]-10*du*.7,tp[1]-1,wob,du*.7);
       // 命中リング
-      const rr=(t-T_HIT)*70;ctx.strokeStyle="rgba(255,255,255,"+Math.max(0,.8-(t-T_HIT)*1.6)+")";ctx.lineWidth=3;ctx.beginPath();ctx.arc(tp[0],tp[1],rr,0,7);ctx.stroke();
+      const rr=(tau-T_HIT)*70;ctx.strokeStyle="rgba(255,255,255,"+Math.max(0,.8-(tau-T_HIT)*1.6)+")";ctx.lineWidth=3;ctx.beginPath();ctx.arc(tp[0],tp[1],rr,0,7);ctx.stroke();
     }
     ctx.restore();
     // フェード(ズーム後半で地図へ)
-    if(t>T_HIT){$("title").style.opacity="0";}
+    if(tau>T_HIT){$("title").style.opacity="0";}
     if(zp>0.55){intro.style.opacity=String(Math.max(0,1-(zp-0.55)/0.4));}
-    if(t>=T_ZOOM){intro.style.opacity="";finish();return;}
+    if(tau>=T_ZOOM){finish();return;}
     raf=requestAnimationFrame(frame);
   }
   raf=requestAnimationFrame(frame);
 }
-vb=vbFor(0);render();hint();startIntro(schedule);
+vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
 $("replay").onclick=()=>{location.reload();};
 </script>
 </body>
