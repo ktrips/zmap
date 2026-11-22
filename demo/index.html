@@ -26,7 +26,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .zip small{display:block;font:12px system-ui;letter-spacing:0;color:var(--mute);margin-top:6px}
 .steps{display:flex;gap:6px;justify-content:center;padding:4px 8px 12px}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
-.bonus{text-align:center;font-size:14px;color:var(--mute);margin:-4px 0 8px}.bonus b{display:inline-block;background:var(--warn);color:#fff;border-radius:99px;padding:1px 12px;font-size:16px}
 .ans{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}.ans label{font-size:12px;color:var(--mute);display:flex;flex-direction:column;gap:2px}.ans select,.ans input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 8px;width:100%}.ans .full{grid-column:1/-1}.ans button{grid-column:1/-1}
 .result{display:none;margin:0 12px 12px;padding:14px;border-radius:12px;text-align:center;position:relative;overflow:hidden}
 .result.show{display:block;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
@@ -41,6 +40,17 @@ button:disabled{opacity:.45;cursor:not-allowed}
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes fall{to{transform:translateY(240px) rotate(540deg);opacity:0}}
 @media (prefers-reduced-motion:reduce){.result.show,.result .conf{animation:none}}
+.bonus{margin:-4px 12px 10px;text-align:center}
+.potential{font-size:15px;color:var(--mute)}.potential b{font-size:30px;color:var(--warn);font-weight:900}
+.ladder{display:flex;gap:6px;justify-content:center;margin:6px 0}
+.rung{flex:1;max-width:76px;border:2px solid var(--line);border-radius:10px;padding:3px 0;text-align:center;line-height:1.15;transition:.25s}
+.rung span{display:block;font-weight:800;font-size:16px}.rung small{font-size:11px;color:var(--mute)}
+.rung.now{border-color:var(--warn);background:var(--warn);color:#fff;transform:scale(1.12)}.rung.now small{color:#fff}
+.rung.past{opacity:.35;text-decoration:line-through}
+.cd{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+#cdbar{height:100%;width:100%;background:var(--acc);border-radius:5px}
+#cdbar.low{background:#dc2626}
+.cdtxt{font-size:13px;color:var(--mute);margin-top:4px}.cdtxt b{font-size:18px;color:var(--ink)}
 .steps i.on{background:var(--acc)}
 #sv{display:block;width:100%;height:240px;background:#9cc}
 #map{display:block;width:100%;height:auto;touch-action:manipulation;cursor:crosshair;background:var(--sea)}
@@ -78,7 +88,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg>
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
-    <div id="bonus" class="bonus"></div>
+    <div id="bonus" class="bonus"><div id="potential" class="potential"></div><div id="ladder" class="ladder"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt">ダーツを投げるとカウントダウン開始</div></div>
     <div id="ans" class="ans"></div>
     <div id="result" class="result"></div>
     <div class="bar" style="justify-content:center;padding-bottom:12px">
@@ -96,7 +106,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <div class="msg" id="msg"></div>
 <p class="note">ルール: ダーツは全5回。投げる前に難易度(VE×1〜VD×5)を選び、ヒントを見ながら左の入力欄で答えます(国名 → 県名 → 市区町村 → 町名 → 番地の順に選択/入力、難易度に応じて必要な欄が増えます)。地図は目印のピンを立てて推理するのに使えます。当たれば「難易度の倍率 × 早撃ちボーナス」が得点、外れは0点。ヒントが狭い段階で当てるほどボーナスが大きく(7桁段階 ×2 → 最終段階 ×1)、全部外れなら0点、全部VEで最終段階に当てれば5点、全部VDなら25点、全部VDを最速で当てれば最大50点です。<br>デモ用の簡易地図・模擬ストリートビュー・固定の5地点です。本番は Google Maps Platform(Maps JavaScript / ストリートビュー / Geocoding / Places)を API キーで利用します。
-ヒントは10秒ごとに自動で広がります。</p>
+ヒントは10秒ごとに自動で広がり(カウントダウン表示)、早く答えるほど得点が高くなります。</p>
 </div>
 
 <div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
@@ -166,9 +176,23 @@ function drawZip(){
   $("steps").innerHTML=[0,1,2,3,4].map(i=>`<i class="${i<=stage?"on":""}"></i>`).join("");
   $("area").textContent=`半径 約${RADIUS_KM[stage]}km`;
 }
-function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${fmt(total)}点`;$("bonus").innerHTML=answered?"":`いま当てると <b>×${STAGE_BONUS[stage]}</b>`;}
-function schedule(){clearInterval(timer);timer=setInterval(()=>{if(!answered)widen();},10000);}
-function widen(){if(answered||stage>=4)return;stage++;render();setVB(vbFor(stage));hint();}
+function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${fmt(total)}点`;updateLadder();}
+const STAGE_MS=10000;let deadline=0;
+function updateLadder(){
+  const m=DIFF[curDiff].mult;
+  $("ladder").innerHTML=STAGE_BONUS.map((b,i)=>`<div class="rung ${i===stage?"now":i<stage?"past":""}"><span>${fmt(m*b)}点</span><small>×${b}</small></div>`).join("");
+  $("potential").innerHTML=answered?"":`いま当てると <b>${fmt(m*STAGE_BONUS[stage])}点</b>`;
+}
+function tick(){
+  if(answered){clearInterval(timer);$("cdtxt").textContent="";$("cdbar").style.width="0";return;}
+  if(stage>=4){$("cdbar").style.width="0";$("cdtxt").textContent="最終ヒント(これ以上は広がりません)";return;}
+  const left=deadline-performance.now();
+  if(left<=0){widen();return;}
+  $("cdbar").style.width=(left/STAGE_MS*100)+"%";$("cdbar").className=left<3000?"low":"";
+  $("cdtxt").innerHTML=`次のヒントまで <b>${(left/1000).toFixed(1)}</b> 秒 — 広がると ×${STAGE_BONUS[stage+1]} に下がります`;
+}
+function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
+function widen(){if(answered||stage>=4)return;stage++;deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
 function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
