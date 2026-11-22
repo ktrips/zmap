@@ -34,6 +34,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .msg{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--acc2);display:none}
 .msg.show{display:block}
 .note{margin-top:12px;font-size:12px;color:var(--mute)}
+
+#intro{position:fixed;inset:0;z-index:10;background:#0a1220;display:block}
+#intro canvas{position:absolute;inset:0;width:100%;height:100%}
+#skip{position:absolute;right:16px;bottom:16px;z-index:11;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
+#title{position:absolute;left:0;right:0;top:6%;text-align:center;color:#fff;font:700 26px system-ui;letter-spacing:.1em;z-index:11;text-shadow:0 2px 12px #000}
+#title small{display:block;font:13px system-ui;opacity:.75;letter-spacing:.05em;margin-top:4px}
 </style>
 </head>
 <body>
@@ -50,6 +56,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
         <option value="VD">VD(完全な住所)</option>
       </select>
     </label>
+    <button id="replay" title="オープニングをもう一度">▶ 最初から</button>
     <span id="round" class="badge"></span>
     <span id="total" class="badge"></span>
   </div>
@@ -79,6 +86,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 ヒントは10秒ごとに自動で広がります。</p>
 </div>
 
+<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><button id="skip">スキップ</button></div>
 <script>
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
 const ROUNDS=[
@@ -171,7 +179,129 @@ $("next").onclick=()=>{
   r++;stage=0;answered=false;pin=null;$("msg").classList.remove("show");$("widen").disabled=false;$("next").style.display="none";
   render();hint();schedule();
 };
-render();hint();schedule();
+
+// ---- オープニング: 地球儀 → ダーツ → ズームイン ----
+const LAND=[
+ [[-168,66],[-140,70],[-95,72],[-80,63],[-62,58],[-55,48],[-70,43],[-76,35],[-81,25],[-97,26],[-105,20],[-117,32],[-124,40],[-125,49],[-140,59],[-165,60]],
+ [[-80,8],[-60,10],[-35,-5],[-40,-22],[-58,-38],[-68,-54],[-74,-45],[-72,-20],[-81,-5]],
+ [[-10,36],[-9,43],[0,50],[10,57],[28,70],[70,73],[110,77],[140,72],[180,68],[165,60],[140,52],[142,46],[130,35],[122,30],[120,22],[108,10],[100,3],[92,22],[80,8],[72,20],[57,25],[44,12],[35,30],[28,37],[22,38],[12,38],[3,43]],
+ [[-17,15],[-10,35],[10,37],[32,31],[43,12],[51,11],[40,-15],[33,-27],[20,-35],[12,-17],[9,4],[-8,5]],
+ [[114,-22],[131,-12],[142,-11],[153,-27],[146,-39],[135,-35],[115,-34]],
+ [[130.9,34],[135,35.6],[140,40.5],[141.5,38],[140,35],[135,33.5]],
+ [[140,42],[141.5,45.4],[145.5,43.3],[143,42]]
+];
+const D2R=Math.PI/180,TILT=22*D2R;
+function startIntro(done){
+  const intro=$("intro"),cv=$("ic"),ctx=cv.getContext("2d");
+  let finished=false,raf;
+  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);intro.style.display="none";done();};
+  $("skip").onclick=finish;
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches){finish();return;}
+  const q=ROUNDS[r];
+  let w,h,dpr;
+  function size(){dpr=window.devicePixelRatio||1;w=innerWidth;h=innerHeight;cv.width=w*dpr;cv.height=h*dpr;}
+  size();addEventListener("resize",size);
+  const T_STOP=3.0,T_THROW=1.9,T_HIT=3.0,T_ZOOM=4.4;
+  const ease=p=>1-Math.pow(1-p,3);
+  // 正射影(緯度φ,経度λ,中心経度λ0)
+  function proj(lon,lat,l0,cx,cy,R){
+    const l=(lon-l0)*D2R,f=lat*D2R;
+    let x=Math.cos(f)*Math.sin(l);
+    let y=Math.cos(TILT)*Math.sin(f)-Math.sin(TILT)*Math.cos(f)*Math.cos(l);
+    const z=Math.sin(TILT)*Math.sin(f)+Math.cos(TILT)*Math.cos(f)*Math.cos(l);
+    if(z<0){const n=Math.hypot(x,y)||1;x/=n;y/=n;}
+    return [cx+R*x,cy-R*y,z>=0];
+  }
+  const start=performance.now();
+  function frame(now){
+    const t=(now-start)/1000;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    // 背景(星)
+    ctx.fillStyle="#0a1220";ctx.fillRect(0,0,w,h);
+    for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,"+(0.3+0.5*((i*37)%10)/10)+")";ctx.fillRect((i*131)%w,(i*71)%h,1.5,1.5);}
+    const R=Math.min(w*0.9,h)*0.3,cx=w*0.62,cy=h*0.52;
+    const p=Math.min(1,t/T_STOP);
+    const l0=q.lon-1080*(1-ease(p));
+    const tp=proj(q.lon,q.lat,q.lon,cx,cy,R);   // 停止時の的の位置
+    const zp=t<T_HIT?0:Math.min(1,(t-T_HIT-0.4)/(T_ZOOM-T_HIT-0.4));
+    const sc=zp>0?Math.exp(Math.log(45)*zp*zp):1;
+    ctx.save();
+    if(sc>1){ctx.translate(tp[0],tp[1]);ctx.scale(sc,sc);ctx.translate(-tp[0],-tp[1]);}
+    // 地球
+    const g=ctx.createRadialGradient(cx-R*.35,cy-R*.4,R*.1,cx,cy,R);
+    g.addColorStop(0,"#5fb4e8");g.addColorStop(1,"#1d5d96");
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
+    ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();
+    // 経緯線
+    ctx.strokeStyle="rgba(255,255,255,.18)";ctx.lineWidth=1/Math.max(1,sc*.6);
+    for(let lo=-180;lo<180;lo+=30){ctx.beginPath();let first=true;for(let la=-90;la<=90;la+=6){const a=proj(lo,la,l0,cx,cy,R);if(a[2]){first?ctx.moveTo(a[0],a[1]):ctx.lineTo(a[0],a[1]);first=false;}else first=true;}ctx.stroke();}
+    for(let la=-60;la<=60;la+=30){ctx.beginPath();let first=true;for(let lo=-180;lo<=180;lo+=6){const a=proj(lo,la,l0,cx,cy,R);if(a[2]){first?ctx.moveTo(a[0],a[1]):ctx.lineTo(a[0],a[1]);first=false;}else first=true;}ctx.stroke();}
+    // 陸地
+    ctx.fillStyle="#6cc58a";ctx.strokeStyle="#3d8f5c";ctx.lineWidth=1;
+    for(const poly of LAND){
+      const pts=poly.map(([lo,la])=>proj(lo,la,l0,cx,cy,R));
+      if(!pts.some(a=>a[2]))continue;
+      ctx.beginPath();pts.forEach((a,i)=>i?ctx.lineTo(a[0],a[1]):ctx.moveTo(a[0],a[1]));ctx.closePath();ctx.fill();ctx.stroke();
+    }
+    // 陰影
+    const sh=ctx.createRadialGradient(cx-R*.3,cy-R*.3,R*.5,cx,cy,R*1.05);
+    sh.addColorStop(0,"rgba(0,0,0,0)");sh.addColorStop(1,"rgba(0,10,30,.55)");
+    ctx.fillStyle=sh;ctx.fillRect(cx-R,cy-R,2*R,2*R);
+    ctx.restore();
+    // 台座
+    ctx.fillStyle="#334155";ctx.fillRect(cx-R*.5,cy+R*1.03,R,R*.08);
+    ctx.fillRect(cx-R*.05,cy+R*.9,R*.1,R*.2);
+    // 人物
+    const px0=w*0.2,py0=h*0.78,u=Math.min(w,h)/700;
+    const thr=Math.max(0,Math.min(1,(t-T_THROW)/0.25));
+    const armA=-2.2+ (thr<1? (thr*2.6): 2.6) -(t<T_THROW? Math.sin(t*6)*0.05:0);
+    const hand=[px0+Math.cos(armA)*60*u+0, py0-120*u+Math.sin(armA)*60*u];
+    ctx.save();
+    ctx.lineCap="round";
+    ctx.strokeStyle="#f5c9a0";ctx.fillStyle="#f5c9a0";
+    ctx.beginPath();ctx.arc(px0,py0-165*u,22*u,0,7);ctx.fill();               // 頭
+    ctx.fillStyle="#dc2626";ctx.beginPath();ctx.arc(px0,py0-175*u,24*u,Math.PI,0);ctx.fill(); // 帽子
+    ctx.fillStyle="#0ea5e9";ctx.fillRect(px0-22*u,py0-140*u,44*u,80*u);        // 胴体
+    ctx.fillStyle="#1e293b";ctx.fillRect(px0-20*u,py0-60*u,16*u,60*u);ctx.fillRect(px0+4*u,py0-60*u,16*u,60*u); // 脚
+    ctx.strokeStyle="#0ea5e9";ctx.lineWidth=12*u;
+    ctx.beginPath();ctx.moveTo(px0+14*u,py0-125*u);ctx.lineTo(hand[0],hand[1]);ctx.stroke();      // 投げる腕
+    ctx.strokeStyle="#f5c9a0";ctx.lineWidth=10*u;ctx.beginPath();ctx.moveTo(hand[0]-Math.cos(armA)*8*u,hand[1]-Math.sin(armA)*8*u);ctx.lineTo(hand[0],hand[1]);ctx.stroke();
+    ctx.restore();
+    // ダーツ
+    function dart(x,y,ang,scale){
+      ctx.save();ctx.translate(x,y);ctx.rotate(ang);ctx.scale(scale,scale);
+      ctx.fillStyle="#e5e7eb";ctx.fillRect(-36,-2,36,4);                     // 軸
+      ctx.fillStyle="#f43f5e";ctx.beginPath();ctx.moveTo(-36,0);ctx.lineTo(-52,-9);ctx.lineTo(-48,0);ctx.lineTo(-52,9);ctx.closePath();ctx.fill(); // 羽
+      ctx.fillStyle="#94a3b8";ctx.beginPath();ctx.moveTo(0,-2);ctx.lineTo(14,0);ctx.lineTo(0,2);ctx.fill(); // 針
+      ctx.restore();
+    }
+    const du=Math.max(1,u*1.3);
+    if(t<T_THROW+0.12){ // 構え中のダーツ
+      dart(hand[0]+14*u,hand[1]-6*u,-0.15,du*.7);
+    }else if(t<T_HIT){
+      const f=(t-T_THROW-0.12)/(T_HIT-T_THROW-0.12);
+      const sx=hand[0]+14*u,sy=hand[1]-6*u;
+      const x=sx+(tp[0]-sx)*f,y=sy+(tp[1]-sy)*f-Math.sin(f*Math.PI)*90*u;
+      const nx=sx+(tp[0]-sx)*(f+.02),ny=sy+(tp[1]-sy)*(f+.02)-Math.sin((f+.02)*Math.PI)*90*u;
+      dart(x,y,Math.atan2(ny-y,nx-x),du*(1-.3*f));
+    }else{
+      const wob=Math.sin((t-T_HIT)*40)*Math.exp(-(t-T_HIT)*8)*0.12;
+      dart(tp[0]-10*du*.7,tp[1]-1,wob,du*.7);
+      // 命中リング
+      const rr=(t-T_HIT)*70;ctx.strokeStyle="rgba(255,255,255,"+Math.max(0,.8-(t-T_HIT)*1.6)+")";ctx.lineWidth=3;ctx.beginPath();ctx.arc(tp[0],tp[1],rr,0,7);ctx.stroke();
+    }
+    ctx.restore();
+    // フェード(ズーム後半で地図へ)
+    if(t>T_HIT){$("title").style.opacity="0";}
+    if(zp>0.55){intro.style.opacity=String(Math.max(0,1-(zp-0.55)/0.4));}
+    if(t>=T_ZOOM){intro.style.opacity="";finish();return;}
+    raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+}
+render();hint();startIntro(schedule);
+$("replay").onclick=()=>{location.reload();};
 </script>
 </body>
 </html>
