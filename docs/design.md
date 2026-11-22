@@ -61,6 +61,12 @@
 3. 桁を外した段階の範囲は、短くした郵便番号(前方一致)を Geocoding し、その viewport / bounds を地図に塗る。
 4. VD では、正解の住所の各要素を比較して判定する。
 
+### 地図ラベルの扱い(ヒント対策)
+- 標準の地図は地名・道路名・店名などのラベルが答えに直結するため、回答用の地図は**ラベル非表示スタイル**を使う(`demo/map-style.js` の `ZMAP_MAP_STYLE.hideLabels`)。道路・水域・地形の形は残すので、土地勘で推理する楽しさは保てる。
+- ハイライト範囲の塗りや回答ピンは通常どおり表示する。VD 向けに行政境界線も隠す案(`hideLabelsAndBoundaries`)も用意した(採用は未決)。
+- 注意: `mapId`(クラウドベースのスタイル)を指定すると JSON の `styles` は無効になる。その場合は Cloud Console で同等のスタイルを作る。
+- 衛星写真(`satellite`)はラベルなしでも看板などが写るため、モード切替を設けるかは別途検討。
+
 ### 運用上の注意
 - API キーは `.env`(`GOOGLE_MAPS_API_KEY`)から読み込み、ビルド時に `dist/config.js` へ書き出し、**リポジトリにコミットしない**。キーには HTTP リファラ制限と API ごとの制限をかける。
 - 課金: Maps JavaScript / Geocoding / Places は従量課金。ラウンドごとの呼び出し数を抑える(出題の事前生成、Geocoding 結果のセッション内再利用)。
@@ -87,5 +93,5 @@ TypeScript + Vite + Google Maps JavaScript API。静的ホスティング(サー
 
 ## Google Map のラベル非表示スタイル(#4 / #8)
 地図ラベル(地名・道路名・施設名・駅名)は答えのヒントになるため、Map 生成時に `styles` で非表示にする。
-`demo/index.html` の `MAP_STYLES` / `createGoogleMap()` が実装。Map は必ずこの関数で生成する。
-デモは Google Map 未接続のため、API キー設定後に `createGoogleMap(el,{center,zoom})` で見た目を確認する(`?mapstyle=off` でスタイル無効の比較が可能)。
+スタイル定義は `demo/map-style.js`(`ZMAP_MAP_STYLE`)、生成は `demo/index.html` の `createGoogleMap()`。Map は必ずこの関数で生成する(styles は衛星画像には効かないため、通常地図 roadmap を使う)。
+API キー設定後に Google Map モードで見た目を確認する(`?mapstyle=off` でスタイル無効の比較が可能)。
