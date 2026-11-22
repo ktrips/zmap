@@ -53,6 +53,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .cdtxt{font-size:13px;color:var(--mute);margin-top:4px}.cdtxt b{font-size:18px;color:var(--ink)}
 .steps i.on{background:var(--acc)}
 #sv{display:block;width:100%;height:240px;background:#9cc}
+#gsv{display:none;width:100%;height:300px}
+#gmap{display:none;width:100%;height:480px}
+.gm #gsv,.gm #gmap{display:block}.gm #sv,.gm #map{display:none}
+@keyframes drift{from{transform:translateX(-60px)}to{transform:translateX(460px)}}
+.cloud{animation:drift 40s linear infinite}
+@media (prefers-reduced-motion:reduce){.cloud{animation:none}}
 #map{display:block;width:100%;height:auto;touch-action:manipulation;cursor:crosshair;background:var(--sea)}
 .info{padding:10px 12px;font-size:13px;color:var(--mute);display:flex;flex-wrap:wrap;gap:4px 16px}
 .info b{color:var(--ink)}
@@ -85,8 +91,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <div class="grid">
   <section class="card">
-    <h2><span>ストリートビュー(模擬)</span><span id="fov"></span></h2>
-    <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg>
+    <h2><span id="svtitle">ストリートビュー(模擬)</span><span id="fov"></span></h2>
+    <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg><div id="gsv"></div>
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
     <div id="bonus" class="bonus"><div id="potential" class="potential"></div><div id="ladder" class="ladder"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt">ダーツを投げるとカウントダウン開始</div></div>
@@ -100,8 +106,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
   <section class="card">
     <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
-    <svg id="map" viewBox="0 0 400 480"></svg>
-    <div id="gmap" style="display:none;width:100%;height:360px"></div>
+    <svg id="map" viewBox="0 0 400 480"></svg><div id="gmap"></div>
     <div class="info" id="pinst" style="display:none"></div>
     <div class="info" id="hint"></div>
   </section>
@@ -114,22 +119,119 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script src="config.js"></script>
+<script src="map-style.js"></script>
 <script>
 // ---- Google Maps API キー(config.js 由来。未設定ならダミーデータのデモ) ----
+// ラベル非表示スタイルは map-style.js(ZMAP_MAP_STYLE.hideLabels)
 const MAPS_KEY=(window.ZMAP_CONFIG&&window.ZMAP_CONFIG.googleMapsApiKey)||"";
 function loadGoogleMaps(){ // 本番実装用の読み込み口(デモ画面は現状ダミーデータ)
   return new Promise((ok,ng)=>{if(window.google&&google.maps)return ok(google.maps);
     const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding`;
     sc.onload=()=>ok(window.google.maps);sc.onerror=()=>ng(new Error("Google Maps の読み込みに失敗"));document.head.appendChild(sc);});
 }
+// ---- Google Map 生成(答えのヒントになる地名・道路名・施設名などのラベルを必ず非表示にする) ----
+// スタイル定義は map-style.js(ZMAP_MAP_STYLE)。Map は必ずこの関数で生成する。
+// 見た目確認: ?mapstyle=off でスタイル無効(ラベル表示の衛星+地図)にして比較できる。
+async function createGoogleMap(el,opts){
+  const maps=await loadGoogleMaps();
+  const off=new URLSearchParams(location.search).get("mapstyle")==="off";
+  return new maps.Map(el,{
+    clickableIcons:false,gestureHandling:"greedy",
+    // styles は衛星/ハイブリッド画像には効かないため、ラベル非表示時は通常地図(roadmap)を使う
+    ...(off?{mapTypeId:"hybrid",mapTypeControl:true}:{mapTypeId:"roadmap",mapTypeControl:false,styles:window.ZMAP_MAP_STYLE.hideLabels}),
+    ...opts
+  });
+}
+// ---- Google Maps 実地図モード(キーがあり読み込めた場合のみ。失敗時は下のダミー表示にフォールバック) ----
+let gMode=false,gmap=null,gpano=null,gcircle=null,gpin=null,gtruth=null,gline=null;
+const G_ZOOM=[16,14,12,10,7],G_SVZ=[2.6,2,1.4,0.8,0];
+async function initGoogle(){
+  if(!MAPS_KEY)return;
+  try{
+    const gm=await loadGoogleMaps();
+    gmap=await createGoogleMap($("gmap"),{center:{lat:35.68,lng:139.76},zoom:5,streetViewControl:false,fullscreenControl:false});
+    geocoder=new gm.Geocoder();
+    gmap.addListener("click",e=>{if(answered)return;pin={lon:e.latLng.lng(),lat:e.latLng.lat()};gDrawMap();reverseAndFill(pin.lat,pin.lon);});
+    gpano=new gm.StreetViewPanorama($("gsv"),{visible:true,addressControl:false,linksControl:false,fullscreenControl:false,motionTracking:false,showRoadLabels:false,zoomControl:true,panControl:true,enableCloseButton:false});
+    gMode=true;document.body.classList.add("gm");$("svtitle").textContent="ストリートビュー(Google)";
+    document.querySelector("#map").closest(".card").querySelector("h2 span").textContent="地図(Google Map・タップで目印のピン)";
+    gm.event.trigger(gmap,"resize");
+    render();
+  }catch(e){console.warn("Google Maps を使えないためデモ表示にします",e);gMode=false;document.body.classList.remove("gm");}
+}
+function gDrawMap(){
+  const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
+  if(gcircle)gcircle.setMap(null);
+  gcircle=new google.maps.Circle({map:gmap,center:c,radius:RADIUS_KM[stage]*1000,strokeColor:"#0b7a5c",strokeWeight:2,fillColor:"#0b7a5c",fillOpacity:.22,clickable:false});
+  if(gpin)gpin.setMap(null);if(gtruth)gtruth.setMap(null);if(gline)gline.setMap(null);
+  gpin=gtruth=gline=null;
+  if(pin){const p={lat:pin.lat,lng:pin.lon};
+    gpin=new google.maps.Circle({map:gmap,center:p,radius:Math.max(30,RADIUS_KM[stage]*60),strokeColor:"#fff",strokeWeight:2,fillColor:"#e11d48",fillOpacity:1,clickable:false});
+    if(answered){gtruth=new google.maps.Circle({map:gmap,center:c,radius:Math.max(30,RADIUS_KM[stage]*60),strokeColor:"#fff",strokeWeight:2,fillColor:"#16a34a",fillOpacity:1,clickable:false});
+      gline=new google.maps.Polyline({map:gmap,path:[p,c],strokeColor:"#e11d48",strokeWeight:2,clickable:false});}}
+}
+function gSetView(){
+  const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
+  if(answered){const b=new google.maps.LatLngBounds(c);if(pin)b.extend({lat:pin.lat,lng:pin.lon});else b.extend({lat:q.lat+.05,lng:q.lon+.05});gmap.fitBounds(b,60);}
+  else{gmap.panTo(c);gmap.setZoom(G_ZOOM[stage]);}
+  gDrawMap();
+}
+function gDrawSV(){
+  const q=ROUNDS[r];$("fov").textContent=`視野 ${[30,45,60,85,110][stage]}°`;
+  if(gpano.__r!==r){gpano.__r=r;
+    new google.maps.StreetViewService().getPanorama({location:{lat:q.lat,lng:q.lon},radius:300,source:"outdoor"},(d,st)=>{
+      if(st==="OK"&&d&&d.location){gpano.setPano(d.location.pano);gpano.setPov({heading:(q.hue*7)%360,pitch:2});gpano.setZoom(G_SVZ[stage]);}
+      else $("fov").textContent="この地点はストリートビューがありません";});
+  }else gpano.setZoom(G_SVZ[stage]);
+}
 // ---- 固定のダミー問題(郵便番号, 地点, 住所) ----
-const ROUNDS=[
+let ROUNDS=[
  {zip:"060-0001",lon:141.354,lat:43.062,pref:"北海道",city:"札幌市中央区",town:"北一条西",num:"2丁目",addr:"北海道札幌市中央区北1条西2丁目",hue:210},
  {zip:"100-0005",lon:139.764,lat:35.681,pref:"東京都",city:"千代田区",town:"丸の内",num:"1丁目",addr:"東京都千代田区丸の内1丁目",hue:30},
  {zip:"920-0961",lon:136.656,lat:36.561,pref:"石川県",city:"金沢市",town:"香林坊",num:"1丁目",addr:"石川県金沢市香林坊1丁目",hue:160},
  {zip:"730-0011",lon:132.459,lat:34.395,pref:"広島県",city:"広島市中区",town:"基町",num:"6丁目",addr:"広島県広島市中区基町6丁目",hue:350},
  {zip:"810-0001",lon:130.402,lat:33.591,pref:"福岡県",city:"福岡市中央区",town:"天神",num:"2丁目",addr:"福岡県福岡市中央区天神2丁目",hue:270}
 ];
+// ---- 郵便番号 → 座標(Geocoding API)で出題地点を生成。キー未設定/失敗時はダミー5件のまま ----
+const DUMMY_ROUNDS=ROUNDS.slice();
+const ZIP_POOL=["060-0042","040-0063","030-0801","020-0021","980-0021","010-0951","990-0042","960-8031","310-0011","320-0026","371-0026","330-0062","260-0013","100-0005","160-0023","150-0002","220-0011","950-0087","930-0005","920-0961","380-0834","400-0031","420-0853","460-0008","500-8833","510-0075","520-0043","600-8216","530-0001","650-0001","640-8227","680-0011","690-0887","700-0901","730-0011","750-0025","760-0017","790-0003","800-0031","810-0001","840-0801","850-0862","860-0001","870-0042","880-0001","890-0053","900-0015"];
+const JP_BOUNDS={lat:[24,46],lon:[122,146]};
+function parseJP(comps){ // address_components(language=ja)→ {pref,city,town,num}
+  const g=t=>{const c=comps.find(c=>c.types.includes(t));return c?c.long_name:"";};
+  const loc=g("locality"),ward=g("sublocality_level_1");
+  const city=loc&&ward&&!loc.endsWith("区")&&ward.endsWith("区")?loc+ward:(loc||ward);
+  return{pref:g("administrative_area_level_1"),city,town:g("sublocality_level_2")||g("sublocality_level_3")||"",num:g("sublocality_level_4")||g("premise")||""};
+}
+const hueOf=z=>[...z].reduce((a,c)=>(a*31+c.charCodeAt(0))%360,7);
+async function geocodeZip(geocoder,zip){
+  const res=await geocoder.geocode({address:zip,componentRestrictions:{country:"JP",postalCode:zip},language:"ja",region:"JP"});
+  const g=res.results&&res.results[0];if(!g)return null;
+  const lat=g.geometry.location.lat(),lon=g.geometry.location.lng();
+  if(lat<JP_BOUNDS.lat[0]||lat>JP_BOUNDS.lat[1]||lon<JP_BOUNDS.lon[0]||lon>JP_BOUNDS.lon[1])return null;
+  const a=parseJP(g.address_components||[]);
+  if(!a.pref||!a.city||!a.town)return null;
+  const num=a.num||"1丁目",stripped=g.formatted_address.replace(/^日本、?\s*〒?[\d-]*\s*/,"");
+  return{zip,lon,lat,pref:a.pref,city:a.city,town:a.town,num,addr:stripped||a.pref+a.city+a.town+num,hue:hueOf(zip)};
+}
+async function loadRoundsFromGeocoding(count=5){
+  const maps=await loadGoogleMaps();
+  const {Geocoder}=await maps.importLibrary("geocoding");
+  const geocoder=new Geocoder();
+  const pool=ZIP_POOL.slice().sort(()=>Math.random()-.5),got=[];
+  while(got.length<count&&pool.length){
+    const batch=pool.splice(0,count-got.length);
+    const rs=await Promise.all(batch.map(z=>geocodeZip(geocoder,z).catch(()=>null)));
+    rs.forEach(x=>x&&got.push(x));
+  }
+  if(got.length<count)throw new Error("Geocoding で必要な出題地点を取得できませんでした");
+  return got;
+}
+// 回答欄の選択肢に正解が必ず含まれるようにする(ダミー表にない地点用)
+function ensureOptions(q){
+  (PREFS["日本"]=PREFS["日本"]||[]);if(!PREFS["日本"].includes(q.pref))PREFS["日本"].push(q.pref);
+  const add=(m,k,v)=>{m[k]=m[k]||[];if(!m[k].includes(v))m[k].push(v);};
+  add(CITIES,q.pref,q.city);add(TOWNS,q.city,q.town);
+}
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
 const STAGE_BONUS=[2,1.6,1.3,1.1,1];   // ヒントが狭い段階で当てるほど大きい
@@ -149,18 +251,20 @@ const ISLANDS=[
 const VIEW_KM=[4,10,36,130,900];   // 各段階で見える縦方向の範囲(km)
 let vb={x:0,y:0,w:W,h:H},vbAnim=null;
 function vbFor(stg,full){const q=ROUNDS[r],[cx,cy]=px(q.lon,q.lat);if(full)return{x:0,y:0,w:W,h:H};const hh=VIEW_KM[stg]/kmPerPx,ww=hh*W/H;return{x:cx-ww/2,y:cy-hh/2,w:ww,h:hh};}
-function setVB(t,instant){cancelAnimationFrame(vbAnim);if(instant){vb=t;drawMap();return;}const a={...vb},t0=performance.now();(function f(n){const k=Math.min(1,(n-t0)/700),e=1-Math.pow(1-k,3);vb={x:a.x+(t.x-a.x)*e,y:a.y+(t.y-a.y)*e,w:a.w+(t.w-a.w)*e,h:a.h+(t.h-a.h)*e};drawMap();if(k<1)vbAnim=requestAnimationFrame(f);})(t0);}
+function setVB(t,instant){if(gMode){gSetView();return;}cancelAnimationFrame(vbAnim);if(instant){vb=t;drawMap();return;}const a={...vb},t0=performance.now();(function f(n){const k=Math.min(1,(n-t0)/700),e=1-Math.pow(1-k,3);vb={x:a.x+(t.x-a.x)*e,y:a.y+(t.y-a.y)*e,w:a.w+(t.w-a.w)*e,h:a.h+(t.h-a.h)*e};drawMap();if(k<1)vbAnim=requestAnimationFrame(f);})(t0);}
 const results=[];
 let r=0,stage=0,answered=false,total=0,timer=null,pin=null;
 const $=id=>document.getElementById(id);
 const svNS="http://www.w3.org/2000/svg";
 
 function drawMap(){
-  if(typeof syncGM==='function')syncGM();
+  if(gMode){gDrawMap();return;}
   const m=$("map");m.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const u=vb.w/W;
   let s=ISLANDS.map(p=>`<polygon points="${p.map(([a,b])=>px(a,b).join(",")).join(" ")}" fill="var(--land)" stroke="var(--mute)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`).join("");
   const q=ROUNDS[r],[cx,cy]=px(q.lon,q.lat);
+  s=`<g stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".6">${[...Array(9)].map((_,i)=>`<line x1="${i*50}" y1="0" x2="${i*50}" y2="${H}" vector-effect="non-scaling-stroke"/>`).join("")}${[...Array(10)].map((_,i)=>`<line x1="0" y1="${i*50}" x2="${W}" y2="${i*50}" vector-effect="non-scaling-stroke"/>`).join("")}</g>`+s;
+  s+=ROUNDS.map(o=>{const [a,b]=px(o.lon,o.lat);return `<circle cx="${a}" cy="${b}" r="${3*u}" fill="var(--mute)"/><text x="${a+5*u}" y="${b-4*u}" font-size="${11*u}" fill="var(--ink)" opacity=".7">${o.city.replace(/市.*/,"").replace(/区$/,"")}</text>`;}).join("");
   const rad=RADIUS_KM[stage]/kmPerPx;
   s+=`<circle cx="${cx}" cy="${cy}" r="${rad}" fill="var(--ring)" fill-opacity=".22" stroke="var(--ring)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
   if(pin){const [a,b]=px(pin.lon,pin.lat);s+=`<circle cx="${a}" cy="${b}" r="${6*u}" fill="#e11d48" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
@@ -168,6 +272,7 @@ function drawMap(){
   m.innerHTML=s;
 }
 function drawSV(){
+  if(gMode){gDrawSV();return;}
   const q=ROUNDS[r],h=q.hue;
   const zoom=[2.4,2.0,1.6,1.25,1.0][stage];
   const fovs=[30,45,60,85,110][stage];
@@ -176,7 +281,13 @@ function drawSV(){
   for(let i=0;i<9;i++){const w=bw[i%6],hh=70+((i*37+h)%90);b+=`<rect x="${x}" y="${150-hh}" width="${w}" height="${hh+10}" fill="hsl(${(h+i*14)%360} 18% ${38+i%3*8}%)"/>`;
     for(let j=0;j<hh/18;j++)b+=`<rect x="${x+8}" y="${152-hh+j*18}" width="${w-16}" height="8" fill="hsl(${h} 30% 78%)" opacity=".55"/>`;x+=w-4;}
   $("sv").innerHTML=`<g transform="translate(200 150) scale(${zoom}) translate(-200 -150)">
-   <rect width="400" height="240" y="-80" fill="hsl(${h} 55% 78%)"/>${b}
+   <defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(${h} 70% 62%)"/><stop offset="1" stop-color="hsl(${(h+40)%360} 80% 88%)"/></linearGradient></defs>
+   <rect width="400" height="240" y="-80" fill="url(#sk)"/>
+   <circle cx="320" cy="40" r="22" fill="#fde047"/><circle cx="320" cy="40" r="34" fill="#fde047" opacity=".25"/>
+   <g class="cloud" fill="#fff" opacity=".85"><ellipse cx="60" cy="38" rx="30" ry="10"/><ellipse cx="80" cy="30" rx="20" ry="10"/></g>
+   <g class="cloud" fill="#fff" opacity=".7" style="animation-delay:-20s"><ellipse cx="60" cy="70" rx="24" ry="8"/><ellipse cx="76" cy="64" rx="16" ry="8"/></g>${b}
+   <g><rect x="40" y="128" width="5" height="30" fill="#7c4a21"/><circle cx="42" cy="118" r="18" fill="#22c55e"/><circle cx="52" cy="124" r="12" fill="#16a34a"/>
+   <rect x="352" y="130" width="5" height="28" fill="#7c4a21"/><circle cx="354" cy="120" r="17" fill="#4ade80"/><circle cx="344" cy="126" r="11" fill="#22c55e"/></g>
    <polygon points="-200,160 600,160 600,400 -200,400" fill="#555"/>
    <polygon points="160,160 240,160 330,260 70,260" fill="#666"/>
    <line x1="200" y1="165" x2="200" y2="260" stroke="#fff" stroke-width="3" stroke-dasharray="10 8"/></g>`;
@@ -219,8 +330,7 @@ $("map").addEventListener("click",e=>{
 
 
 // ---- Google Map モード + 逆ジオコーディング(ピン → 住所 → 回答欄の自動入力) ----
-let gm=null,gmap=null,gmMarker=null,gmCircle=null,gmTruth=null,gmLine=null,geocoder=null,reverseSeq=0;
-const GM_ZOOM=[15,13,11,9,6];
+let geocoder=null,reverseSeq=0;
 // Geocoding API の結果(address_components)を 国/県/市区町村/町名/番地 に整える
 function parseComponents(comps){
   const g=t=>{const c=comps.find(x=>x.types.includes(t));return c?c.long_name:"";};
@@ -263,32 +373,6 @@ function reverseAndFill(lat,lon){
     done(r0||null);
   }).catch(e=>{if(seq===reverseSeq)setPinStatus("📍 逆ジオコーディングに失敗しました: "+(e&&e.code||e),true);});
 }
-function syncGM(){
-  if(!gmap)return;
-  const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
-  gmCircle.setCenter(c);gmCircle.setRadius(RADIUS_KM[stage]*1000);
-  if(answered){gmap.fitBounds(new gm.LatLngBounds(c,pin?{lat:pin.lat,lng:pin.lon}:c),60);
-    gmTruth=gmTruth||new gm.Marker({map:gmap,icon:{path:gm.SymbolPath.CIRCLE,scale:8,fillColor:"#16a34a",fillOpacity:1,strokeColor:"#fff",strokeWeight:2}});gmTruth.setPosition(c);gmTruth.setMap(gmap);
-    if(pin){gmLine=gmLine||new gm.Polyline({map:gmap,strokeColor:"#e11d48",strokeWeight:2});gmLine.setPath([{lat:pin.lat,lng:pin.lon},c]);gmLine.setMap(gmap);}
-  }else{
-    if(gmTruth)gmTruth.setMap(null);if(gmLine)gmLine.setMap(null);
-    gmap.panTo(c);gmap.setZoom(GM_ZOOM[stage]);
-  }
-  if(pin){gmMarker.setPosition({lat:pin.lat,lng:pin.lon});gmMarker.setMap(gmap);}else gmMarker.setMap(null);
-}
-async function initGoogleMap(){
-  if(!MAPS_KEY)return;
-  try{
-    gm=await loadGoogleMaps();
-    gmap=new gm.Map($("gmap"),{center:{lat:ROUNDS[r].lat,lng:ROUNDS[r].lon},zoom:GM_ZOOM[0],streetViewControl:false,mapTypeControl:false,fullscreenControl:false,clickableIcons:false,gestureHandling:"greedy"});
-    gmMarker=new gm.Marker({position:{lat:0,lng:0}});
-    gmCircle=new gm.Circle({map:gmap,fillColor:"#0b7a5c",fillOpacity:.22,strokeColor:"#0b7a5c",strokeWeight:2,clickable:false});
-    geocoder=new gm.Geocoder();
-    gmap.addListener("click",e=>{if(answered)return;pin={lat:e.latLng.lat(),lon:e.latLng.lng()};syncGM();reverseAndFill(pin.lat,pin.lon);});
-    $("map").style.display="none";$("gmap").style.display="block";
-    syncGM();
-  }catch(e){gm=null;gmap=null;geocoder=null;setPinStatus("Google Map を読み込めなかったため簡易地図で動作します",true);}
-}
 
 // ---- 回答フォーム(選択式 + 番地入力) ----
 const PREFS={
@@ -304,6 +388,7 @@ const FLABEL={country:"国名",pref:"県名(都道府県・州)",city:"市区町
 const shuf=a=>a.slice().sort((x,y)=>((x.charCodeAt(0)*7+r*3)%13)-((y.charCodeAt(0)*7+r*3)%13));
 function opts(list){return `<option value="">選択してください</option>`+list.map(v=>`<option>${v}</option>`).join("");}
 function buildForm(){
+  ensureOptions(ROUNDS[r]);
   const f=FIELDS[curDiff];
   $("ans").innerHTML=f.map(k=>k==="num"?`<label class="full">${FLABEL[k]}<input id="a_num" inputmode="text" placeholder="例: 2丁目 / 2-3-1"></label>`:`<label class="${k==="town"||k==="city"?"":""}">${FLABEL[k]}<select id="a_${k}"></select></label>`).join("")+`<button id="submit" class="primary">回答する</button>`;
   const set=(k,list)=>{const el=$("a_"+k);if(el)el.innerHTML=opts(list);};
@@ -354,7 +439,7 @@ $("next").onclick=()=>{
     showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点)<br>${results.map(x=>(x.hit?(x.stage===0?"🟨":"🟩"):"⬜")+x.d).join(" ")}<br>共有文: zmap ${fmt(total)}点 ${results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜").join("")}</div>`,"final",total>0);
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
   cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;reverseSeq++;$('pinst').style.display='none';vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
-  render();startIntro(()=>{hint();schedule();});
+  render();if(gMode)gSetView();startIntro(()=>{hint();schedule();});
 };
 
 // ---- オープニング: 地球儀 → ダーツ → ズームイン ----
@@ -407,7 +492,7 @@ function startIntro(done){
     ctx.clearRect(0,0,w,h);
     // 背景(星)
     ctx.fillStyle="#0a1220";ctx.fillRect(0,0,w,h);
-    for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,"+(0.3+0.5*((i*37)%10)/10)+")";ctx.fillRect((i*131)%w,(i*71)%h,1.5,1.5);}
+    for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,"+(0.3+0.5*Math.abs(Math.sin(t*1.5+i)))+")";ctx.fillRect((i*131)%w,(i*71)%h,1.5,1.5);}
     const R=Math.min(w*0.9,h)*0.3,cx=w*0.62,cy=h*0.52;
     const l0=tau<0?70*t:a0+(l0F-a0)*ease(Math.min(1,tau/T_HIT));
     curL0=l0;
@@ -418,7 +503,10 @@ function startIntro(done){
     if(sc>1){ctx.translate(tp[0],tp[1]);ctx.scale(sc,sc);ctx.translate(-tp[0],-tp[1]);}
     // 地球
     const g=ctx.createRadialGradient(cx-R*.35,cy-R*.4,R*.1,cx,cy,R);
-    g.addColorStop(0,"#5fb4e8");g.addColorStop(1,"#1d5d96");
+    g.addColorStop(0,"#7fd0ff");g.addColorStop(1,"#0f4c8a");
+    const ag=ctx.createRadialGradient(cx,cy,R*.95,cx,cy,R*1.28);
+    ag.addColorStop(0,"rgba(120,200,255,.55)");ag.addColorStop(1,"rgba(120,200,255,0)");
+    ctx.fillStyle=ag;ctx.beginPath();ctx.arc(cx,cy,R*1.28,0,7);ctx.fill();
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();
     ctx.save();ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();
     // 経緯線
@@ -426,12 +514,15 @@ function startIntro(done){
     for(let lo=-180;lo<180;lo+=30){ctx.beginPath();let first=true;for(let la=-90;la<=90;la+=6){const a=proj(lo,la,l0,cx,cy,R);if(a[2]){first?ctx.moveTo(a[0],a[1]):ctx.lineTo(a[0],a[1]);first=false;}else first=true;}ctx.stroke();}
     for(let la=-60;la<=60;la+=30){ctx.beginPath();let first=true;for(let lo=-180;lo<=180;lo+=6){const a=proj(lo,la,l0,cx,cy,R);if(a[2]){first?ctx.moveTo(a[0],a[1]):ctx.lineTo(a[0],a[1]);first=false;}else first=true;}ctx.stroke();}
     // 陸地
-    ctx.fillStyle="#6cc58a";ctx.strokeStyle="#3d8f5c";ctx.lineWidth=1;
+    ctx.fillStyle="#7bd389";ctx.strokeStyle="#2f8f55";ctx.lineWidth=1;
     for(const poly of LAND){
       const pts=poly.map(([lo,la])=>proj(lo,la,l0,cx,cy,R));
       if(!pts.some(a=>a[2]))continue;
       ctx.beginPath();pts.forEach((a,i)=>i?ctx.lineTo(a[0],a[1]):ctx.moveTo(a[0],a[1]));ctx.closePath();ctx.fill();ctx.stroke();
     }
+    // 雲(ゆっくり流れる)
+    ctx.fillStyle="rgba(255,255,255,.55)";
+    for(let i=0;i<14;i++){const a=proj((i*47+l0*0.6)%360-180,((i*29)%120)-60,l0,cx,cy,R);if(a[2]){ctx.beginPath();ctx.ellipse(a[0],a[1],R*.11,R*.04,0,0,7);ctx.ellipse(a[0]+R*.06,a[1]-R*.02,R*.07,R*.035,0,0,7);ctx.fill();}}
     // 陰影
     const sh=ctx.createRadialGradient(cx-R*.3,cy-R*.3,R*.5,cx,cy,R*1.05);
     sh.addColorStop(0,"rgba(0,0,0,0)");sh.addColorStop(1,"rgba(0,10,30,.55)");
@@ -489,7 +580,16 @@ function startIntro(done){
   raf=requestAnimationFrame(frame);
 }
 $("keybadge").textContent=MAPS_KEY?"Maps APIキー: 設定済み":"Maps APIキー: 未設定(ダミー)";
-vb=vbFor(0);render();hint();initGoogleMap();startIntro(()=>{hint();schedule();});
+async function boot(){
+  if(MAPS_KEY){
+    $("keybadge").textContent="出題地点を取得中…";
+    try{ROUNDS=await loadRoundsFromGeocoding(5);$("keybadge").textContent="Maps APIキー: 設定済み(郵便番号→座標を取得)";$("dbadge").textContent="";}
+    catch(e){console.warn(e);ROUNDS=DUMMY_ROUNDS.slice();$("keybadge").textContent="Geocoding失敗: ダミー5地点で開始";}
+  }
+  vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
+  initGoogle().then(()=>{if(gMode)setVB(vbFor(stage),true);});
+}
+boot();
 $("replay").onclick=()=>{location.reload();};
 </script>
 </body>
