@@ -30,6 +30,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .steps{display:flex;gap:6px;justify-content:center;padding:4px 8px 12px}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
 .ans{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}.ans label{font-size:12px;color:var(--mute);display:flex;flex-direction:column;gap:2px}.ans select,.ans input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 8px;width:100%}.ans .full{grid-column:1/-1}.ans button{grid-column:1/-1}
+.ans .country{grid-column:1/-1;font-size:13px;color:var(--mute)}.ans .country b{color:var(--ink)}
 .result{display:none;margin:0 12px 12px;padding:14px;border-radius:12px;text-align:center;position:relative;overflow:hidden}
 .result.show{display:block;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
 .result.win{background:linear-gradient(135deg,#fde68a,#fbbf24);color:#4a2c00}
@@ -128,10 +129,10 @@ body.revealed #gmap{height:620px}
 </div>
 
 <div class="msg" id="msg"></div>
-<p class="note">遊び方: 日本のどこかがランダムに5か所出題されます。郵便番号・ストリートビュー・地名を消した地図をヒントに、場所の名前を答えます。投げる前に難易度(VE×1〜VD×5)を選ぶと、答える欄(国名 → 都道府県 → 市区町村 → 町名 → 番地)が増えます。<br>ヒントは20秒ごとに郵便番号の下の桁が外れて広がり、そのぶん得点が下がります(7桁段階 ×2 → 最終段階 ×1)。当たれば「難易度の倍率 × 早撃ちボーナス」、外れは0点。全部VDを最速で当てれば最大50点です。地図のピンは推理用の目印で、答えには使われません。</p>
+<p class="note">遊び方: 日本のどこかがランダムに5か所出題されます。郵便番号・ストリートビュー・地名を消した地図をヒントに、その場所の<b>都道府県</b>を答えます(国はダーツで決まるので答えなくてOK)。1投目の前に「市区町村」や「Very difficult(町名と丁目・番地まで)」にも変えられます。<br>郵便番号は20秒ごとに下の桁が1つずつ外れてヒントが広がります。当てたときに見えていた桁数で得点が決まります: 7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点、外れは0点。5問で最大50点です。地図のピンは推理用の目印で、答えには使われません。</p>
 </div>
 
-<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
+<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県を当てる</option><option value="city">市区町村を当てる</option><option value="vd">Very difficult(丁目・番地まで)</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
@@ -283,10 +284,10 @@ async function loadRoundsFromGeocoding(count=5){
   return got;
 }
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
-const DIFF={VE:{mult:1,label:"国",hit:0},Easy:{mult:2,label:"県",hit:120},Mid:{mult:3,label:"市",hit:25},Diff:{mult:4,label:"町域",hit:3},VD:{mult:5,label:"住所",hit:0.3}}; // hit=当たりとみなす距離km(デモの近似)。VEは日本の陸地内。
-const STAGE_BONUS=[2,1.6,1.3,1.1,1];   // ヒントが狭い段階で当てるほど大きい
+const POINTS=[10,8,6,4,2];   // 郵便番号が 7/6/5/4/3 桁見えている段階で当てたときの得点
+const MODES={pref:{label:"都道府県",what:"都道府県"},city:{label:"市区町村",what:"市区町村"},vd:{label:"Very difficult",what:"市区町村・町名・丁目番地"}};
 const fmt=n=>(Math.round(n*10)/10).toString();
-let curDiff="Mid";
+let mode=MODES[localStorage.getItem("zmap:mode")]?localStorage.getItem("zmap:mode"):"pref";
 function inJapan(lon,lat){return ISLANDS.some(poly=>{let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c;}return c;});}
 const LON0=128,LON1=146,LAT0=30,LAT1=46,W=400,H=480,KX=Math.cos(38*Math.PI/180);
 const px=(lon,lat)=>[(lon-LON0)/(LON1-LON0)*W,(LAT1-lat)/(LAT1-LAT0)*H];
@@ -352,9 +353,8 @@ function drawZip(){
 function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${fmt(total)}点`;updateLadder();}
 const STAGE_MS=20000;let deadline=0;
 function updateLadder(){
-  const m=DIFF[curDiff].mult;
-  $("ladder").innerHTML=STAGE_BONUS.map((b,i)=>`<div class="rung ${i===stage?"now":i<stage?"past":""}"><span>${fmt(m*b)}点</span><small>×${b}</small></div>`).join("");
-  $("potential").innerHTML=answered?"":`いま当てると <b>${fmt(m*STAGE_BONUS[stage])}点</b>`;
+  $("ladder").innerHTML=POINTS.map((p,i)=>`<div class="rung ${i===stage?"now":i<stage?"past":""}"><span>${p}点</span><small>${7-i}桁</small></div>`).join("");
+  $("potential").innerHTML=answered?"":`いま当てると <b>${POINTS[stage]}点</b>`;
 }
 function tick(){
   if(answered){clearInterval(timer);$("cdtxt").textContent="";$("cdbar").style.width="0";return;}
@@ -362,11 +362,11 @@ function tick(){
   const left=deadline-performance.now();
   if(left<=0){widen();return;}
   $("cdbar").style.width=(left/STAGE_MS*100)+"%";$("cdbar").className=left<5000?"low":"";
-  $("cdtxt").innerHTML=`次のヒントまで <b>${(left/1000).toFixed(1)}</b> 秒 — 広がると ×${STAGE_BONUS[stage+1]} に下がります`;
+  $("cdtxt").innerHTML=`次のヒントまで <b>${(left/1000).toFixed(1)}</b> 秒 — 広がると ${POINTS[stage+1]}点 に下がります`;
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
 function widen(){if(answered||stage>=4)return;stage++;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
-function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう(地図はヒントが広がると広がります)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
+function hint(){const m=MODES[mode];$("hint").innerHTML=`<span><b>${m.what}</b>を当てよう(郵便番号 7桁で10点 → 3桁で2点)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう(地図はヒントが広がると広がります)</span>`;$("dbadge").textContent=m.label;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
@@ -383,24 +383,15 @@ $("map").addEventListener("click",e=>{
 // ---- 地図のピンは推理用の目印だけ。ピンの住所は答えそのものになるので表示も自動入力もしない ----
 function pinPlaced(){const el=$("pinst");el.style.display="";el.textContent="📍 目印を立てました。答えは左の欄に入力してください";}
 
-// ---- 回答フォーム: 国・都道府県は選択、市区町村・町名・番地は入力(候補を並べると正解が混ざって答えが絞れてしまうため) ----
-const PREFS={
- "日本":["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"],
- "アメリカ":["カリフォルニア州","ニューヨーク州","テキサス州","フロリダ州"],
- "イギリス":["イングランド","スコットランド","ウェールズ","北アイルランド"],
- "インド":["デリー","マハラシュトラ州","カルナータカ州","タミル・ナードゥ州"]};
-const FIELDS={VE:["country"],Easy:["country","pref"],Mid:["country","pref","city"],Diff:["country","pref","city","town"],VD:["country","pref","city","town","num"]};
-const FLABEL={country:"国名",pref:"都道府県",city:"市区町村",town:"町名",num:"番地"};
-const FHOLD={city:"例: 金沢市(「市」「区」「町」「村」は省略可)",town:"例: 香林坊(丁目は不要)",num:"例: 2丁目"};
-const shuf=a=>a.slice().sort((x,y)=>((x.charCodeAt(0)*7+r*3)%13)-((y.charCodeAt(0)*7+r*3)%13));
-function opts(list){return `<option value="">選択してください</option>`+list.map(v=>`<option>${v}</option>`).join("");}
+// ---- 回答フォーム: 都道府県は全件から選択、市区町村・町名・番地は自由入力(候補を並べると正解が混ざって答えが絞れてしまうため) ----
+const PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
+const FIELDS={pref:["pref"],city:["city"],vd:["city","town","num"]};
+const FLABEL={pref:"都道府県",city:"市区町村",town:"町名",num:"丁目・番地"};
+const FHOLD={city:"例: 金沢市(都道府県と「市」「区」「町」「村」は省略可)",town:"例: 香林坊(丁目は不要)",num:"例: 2丁目"};
+const COUNTRY={JP:"🇯🇵 日本",US:"🇺🇸 アメリカ",GB:"🇬🇧 イギリス",IN:"🇮🇳 インド"};
 function buildForm(){
-  const f=FIELDS[curDiff];
-  $("ans").innerHTML=f.map(k=>k==="country"||k==="pref"?`<label>${FLABEL[k]}<select id="a_${k}"></select></label>`:`<label class="full">${FLABEL[k]}<input id="a_${k}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${FHOLD[k]}"></label>`).join("")+`<button id="submit" class="primary">回答する</button>`;
-  const set=(k,list)=>{const el=$("a_"+k);if(el)el.innerHTML=opts(list);};
-  set("country",shuf(Object.keys(PREFS)));set("pref",[]);
-  const cs=$("a_country");
-  if(cs)cs.onchange=()=>set("pref",PREFS[cs.value]||[]);
+  $("ans").innerHTML=`<div class="country">国: <b>${COUNTRY[ROUNDS[r].country||"JP"]||COUNTRY.JP}</b>(ダーツが刺さった国)</div>`+FIELDS[mode].map(k=>k==="pref"?`<label class="full">${FLABEL[k]}<select id="a_pref"><option value="">選択してください</option>${PREFS.map(p=>`<option>${p}</option>`).join("")}</select></label>`:`<label class="full">${FLABEL[k]}<input id="a_${k}" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${FHOLD[k]}" enterkeyhint="go"></label>`).join("")+`<button id="submit" class="primary">回答する</button>`;
+  $("ans").querySelectorAll("input").forEach(el=>el.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)submitAnswer();});
   $("submit").onclick=submitAnswer;
 }
 // 入力の揺れを吸収して比べる(全角/半角、漢数字、末尾の「市・区・町・村」、丁目)
@@ -408,7 +399,9 @@ const KN={"〇":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":
 const kanNum=s=>s.replace(/[一二三四五六七八九十]+/g,m=>{const i=m.indexOf("十");if(i<0)return [...m].map(c=>KN[c]).join("");return String((i?KN[m[0]]:1)*10+(m[i+1]?KN[m[i+1]]:0));});
 const norm=s=>kanNum(String(s||"").normalize("NFKC").replace(/[\s・ヶケ]/g,c=>c==="ヶ"||c==="ケ"?"ケ":""));
 const base=s=>norm(s).replace(/(市|区|町|村)$/,"");
-const cityOk=(v,q)=>!!base(v)&&[q.city,q.cityMain||q.city].some(t=>norm(t)===norm(v)||base(t)===base(v));
+const PREF_RE=/^(東京都|北海道|(京都|大阪)府|.{2,3}県)(?=.)/;
+const noPref=s=>norm(s).replace(PREF_RE,"").replace(/^[^郡]{1,4}郡(?=.+[町村]$)/,"");
+const cityOk=(v,q)=>{const p=(norm(v).match(PREF_RE)||[])[0];if(p&&q.pref&&p!==norm(q.pref))return false;v=noPref(v);return !!base(v)&&[q.city,q.cityMain||q.city].some(t=>norm(t)===v||base(t)===base(v));};
 const townOk=(v,t)=>{const a=norm(v).replace(/\d+丁目$/,""),b=norm(t).replace(/\d+丁目$/,"");return a.length>0&&(a===b||(a.length>=2&&b.startsWith(a)));};
 const kan2n=t=>String(t).replace(/[一二三四五六七八九]?十?[一二三四五六七八九]?(?=丁目|番|号|$)/g,m=>{if(!m)return m;let n=0,t10=m.indexOf("十");if(t10<0)return String(KN[m]);n=(t10>0?KN[m[0]]:1)*10+(m.length>t10+1?KN[m[t10+1]]:0);return String(n);});
 const digits=t=>(kan2n(String(t)).replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-65248)).match(/\d+/g)||[]).join("-");
@@ -421,22 +414,21 @@ function showResult(html,cls,confetti){
 function hideResult(){$("result").className="result";$("result").innerHTML="";}
 function submitAnswer(){
   if(answered)return;
-  const q=ROUNDS[r],d=curDiff,f=FIELDS[d],v={};
+  const q=ROUNDS[r],f=FIELDS[mode],v={};
   for(const k of f){const el=$("a_"+k);v[k]=el?el.value.trim():"";}
   if(f.some(k=>!v[k])){showResult("⚠ すべての欄を入力してください。","warn");return;}
-  const right={country:x=>x==="日本",pref:x=>x===q.pref,city:x=>cityOk(x,q),town:x=>townOk(x,q.town),num:x=>!q.num||digits(x)===digits(q.num)};
+  const right={pref:x=>x===q.pref,city:x=>cityOk(x,q),town:x=>townOk(x,q.town),num:x=>!q.num||digits(x)===digits(q.num)};
   const ok=f.every(k=>right[k](v[k]));
-  answered=true;clearInterval(timer);
+  answered=true;tick();
   f.forEach(k=>{const el=$("a_"+k);if(el)el.disabled=true;});$("submit").disabled=true;
-  const bonus=STAGE_BONUS[stage],pts=ok?Math.round(DIFF[d].mult*bonus*10)/10:0;
-  total=Math.round((total+pts)*10)/10;results.push({d,hit:ok,pts,stage});
-  const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
+  const pts=ok?POINTS[stage]:0;
+  total+=pts;results.push({hit:ok,pts,stage});
   const wrong=f.filter(k=>!right[k](v[k])).map(k=>FLABEL[k]);
   const mine=f.map(k=>v[k]).join(" ");
   zmapNative.haptic(ok?"success":"error");
   if(ok){
-    const cheer=stage===0?"最速で的中!天才!":pts>=10?"お見事!":"ナイス!";
-    showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${fmt(pts)}点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${cheer} ${DIFF[d].label}: ${ans}<br>${DIFF[d].mult}(難易度)× ${bonus}(早撃ちボーナス)</div>`,"win",true);
+    const cheer=stage===0?"7桁で的中!天才!":stage===1?"お見事!":"ナイス!";
+    showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${pts}点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${cheer} 郵便番号 ${7-stage}桁の段階で当てました</div>`,"win",true);
   }else{
     showResult(`<div class="big">😢 ハズレ</div><div class="pts">0点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">あなたの答え: ${esc(mine)}(違った項目: ${wrong.join("・")})</div>`,"lose",false);
   }
@@ -454,7 +446,7 @@ $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
     const marks=results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜");
     const shareText=`zmap${DAILY?" デイリー "+TODAY:""} ${fmt(total)}点 ${marks.join("")}\n${location.origin}${location.pathname}${DAILY?"?daily=1":""}`;
-    showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点)<br>${results.map((x,i)=>marks[i]+x.d).join(" ")}</div>`+
+    showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点・${MODES[mode].label})<br>${results.map((x,i)=>marks[i]+(x.hit?`${7-x.stage}桁`:"")).join(" ")}</div>`+
       `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">結果を共有</button>${zmapNative.inApp?'<button id="lb">ランキング</button>':""}</div>`,"final",total>0);
     $("share").onclick=()=>zmapNative.share(shareText);
     if($("lb"))$("lb").onclick=zmapNative.leaderboard;
@@ -487,14 +479,17 @@ function startIntro(done){
   const intro=$("intro"),cv=$("ic"),ctx=cv.getContext("2d");
   let finished=false,raf,tThrow=null,a0=0,l0F=0,curL0=0;
   intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
-  $("title").innerHTML=`ダーツ ${r+1} / ${ROUNDS.length}<small>難易度を選んで、地球儀にダーツを投げよう</small>`;
+  $("title").innerHTML=`ダーツ ${r+1} / ${ROUNDS.length}<small>${r===0?"モードを選んで、":""}地球儀にダーツを投げよう</small>`;
   $("ctrl").style.display="flex";
+  // モードはゲームの途中で変えられない(得点が比べられなくなるため)。選べるのは1投目だけ
+  const sel=$("imode");sel.value=mode;sel.style.display=r===0?"":"none";
+  const pick=()=>{if(r===0){mode=sel.value;localStorage.setItem("zmap:mode",mode);}};
   const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";buildForm();hint();render();done();};
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  $("skip").onclick=()=>{curDiff=$("idiff").value;finish();};
+  $("skip").onclick=()=>{pick();finish();};
   $("throw").onclick=()=>{
     if(tThrow!==null)return;
-    curDiff=$("idiff").value;
+    pick();
     if(reduce){finish();return;}
     $("ctrl").style.display="none";
     tThrow=(performance.now()-start)/1000;a0=curL0;
