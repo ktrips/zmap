@@ -26,7 +26,7 @@ targets:
     info:
       path: Sources/App/Info.plist
       properties:
-        CFBundleDisplayName: zmap
+        CFBundleDisplayName: Zapper
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

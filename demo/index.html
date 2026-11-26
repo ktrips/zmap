@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>zmap — 郵便番号で場所を当てる</title>
+<title>Zapper — 地図と郵便番号当てゲーム</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--ink:#1c2430;--mute:#6b7785;--line:#dde3ea;--acc:#0b7a5c;--acc2:#e0f3ec;--warn:#c2410c;--sea:#dbeaf5;--land:#fff;--ring:#0b7a5c}
 @media (prefers-color-scheme:dark){:root{--bg:#10161d;--card:#18212b;--ink:#e6ecf2;--mute:#8d9aa8;--line:#2a3643;--acc:#3ecf9f;--acc2:#12352a;--warn:#fb923c;--sea:#16283a;--land:#223244;--ring:#3ecf9f}}
@@ -15,6 +15,9 @@ h1{font-size:22px;margin:0;letter-spacing:.04em}
 h1 small{font-size:12px;font-weight:500;color:var(--mute);margin-left:10px;letter-spacing:0}
 .badge{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:99px;padding:2px 10px}
 .badge:empty{display:none}
+#total{font-size:22px;font-weight:900;color:var(--warn);border-color:var(--warn);padding:2px 14px}#total.pop{animation:pop .5s}
+@keyframes pop{40%{transform:scale(1.3)}}
+.hist{margin:12px auto 0;border-collapse:collapse;font-size:13px;min-width:260px}.hist th,.hist td{padding:3px 8px;border-bottom:1px solid var(--line);text-align:left}.hist td.p{text-align:right;font-weight:700}.hist tr.now td{background:rgba(245,158,11,.18)}.hist caption{font-weight:700;margin-bottom:4px}
 a.badge{color:var(--acc);text-decoration:none}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 select,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
@@ -30,6 +33,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .steps{display:flex;gap:6px;justify-content:center;padding:4px 8px 12px}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
 .ans{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px 12px}.ans label{font-size:12px;color:var(--mute);display:flex;flex-direction:column;gap:2px}.ans select,.ans input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 8px;width:100%}.ans .full{grid-column:1/-1}.ans button{grid-column:1/-1}
+.local{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.7);color:#1f2937;font-size:14px;line-height:1.6;text-align:left}.local b{color:#0b7a5c}.local .wiki:empty{display:none}.local .wiki{margin-top:4px;font-size:13px}
 .ans .country{grid-column:1/-1;font-size:13px;color:var(--mute)}.ans .country b{color:var(--ink)}
 .result{display:none;margin:0 12px 12px;padding:14px;border-radius:12px;text-align:center;position:relative;overflow:hidden}
 .result.show{display:block;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
@@ -46,9 +50,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .reveal small{display:block;font-size:12px;color:var(--mute)}
 .reveal b{display:block;font-size:30px;line-height:1.25;font-weight:900}
 .reveal span{font:600 14px ui-monospace,Menlo,monospace;color:var(--mute)}
-body.revealed #mapcard{grid-column:1/-1}
-body.revealed #gmap{height:620px}
-@media(max-width:720px){.reveal b{font-size:23px}.result .answer{font-size:20px}body.revealed #gmap{height:460px}}
+@media(max-width:720px){.reveal b{font-size:23px}.result .answer{font-size:20px}}
 .result .conf{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:fall 1.6s ease-in forwards;pointer-events:none}
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes fall{to{transform:translateY(240px) rotate(540deg);opacity:0}}
@@ -56,6 +58,8 @@ body.revealed #gmap{height:620px}
 .bonus{margin:-4px 12px 10px;text-align:center}
 .potential{font-size:15px;color:var(--mute)}.potential b{font-size:30px;color:var(--warn);font-weight:900}
 .ladder{display:flex;gap:6px;justify-content:center;margin:6px 0}
+#widen{display:block;margin:8px auto 2px}
+.rung.next{cursor:pointer}.rung.next:hover{border-color:var(--acc)}
 .rung{flex:1;max-width:76px;border:2px solid var(--line);border-radius:10px;padding:3px 0;text-align:center;line-height:1.15;transition:.25s}
 .rung span{display:block;font-weight:800;font-size:16px}.rung small{font-size:11px;color:var(--mute)}
 .rung.now{border-color:var(--warn);background:var(--warn);color:#fff;transform:scale(1.12)}.rung.now small{color:#fff}
@@ -93,7 +97,7 @@ body.revealed #gmap{height:620px}
 <body>
 <div class="wrap">
 <header>
-  <h1>zmap<small>郵便番号で場所を当てよう</small></h1>
+  <h1>Zapper<small>地図と郵便番号当てゲーム</small></h1>
   <div class="bar">
     <a id="mode" class="badge" href="?daily=1">📅 今日の問題</a>
     <span id="dbadge" class="badge"></span>
@@ -110,11 +114,10 @@ body.revealed #gmap{height:620px}
     <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg><div id="gsv"></div>
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
-    <div id="bonus" class="bonus"><div id="potential" class="potential"></div><div id="ladder" class="ladder"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt">ダーツを投げるとカウントダウン開始</div></div>
+    <div id="bonus" class="bonus"><div id="potential" class="potential"></div><button id="widen">🔍 ヒントを広げる(桁を1つ外す)</button><div id="ladder" class="ladder"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt">ダーツを投げるとカウントダウン開始</div></div>
     <div id="ans" class="ans"></div>
     <div id="result" class="result"></div>
     <div class="bar" style="justify-content:center;padding-bottom:12px">
-      <button id="widen">ヒントを広げる(桁を1つ外す)</button>
       <button id="next" class="primary" style="display:none">次のラウンドへ</button>
     </div>
   </section>
@@ -132,10 +135,11 @@ body.revealed #gmap{height:620px}
 <p class="note">遊び方: 日本のどこかがランダムに5か所出題されます。郵便番号・ストリートビュー・地名を消した地図をヒントに、その場所の<b>都道府県</b>を答えます(国はダーツで決まるので答えなくてOK)。1投目の前に「市区町村」や「Very difficult(町名と丁目・番地まで)」にも変えられます。<br>郵便番号は20秒ごとに下の桁が1つずつ外れてヒントが広がります。当てたときに見えていた桁数で得点が決まります: 7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点、外れは0点。5問で最大50点です。地図のピンは推理用の目印で、答えには使われません。</p>
 </div>
 
-<div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県を当てる</option><option value="city">市区町村を当てる</option><option value="vd">Very difficult(丁目・番地まで)</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
+<div id="intro"><div id="title">Zapper<small>地図と郵便番号当てゲーム</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県を当てる</option><option value="city">市区町村を当てる</option><option value="vd">Very difficult(丁目・番地まで)</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
+<script src="meibutsu.js"></script>
 <script>
 // ---- Google Maps API キー(config.js 由来。未設定ならダミーデータのデモ) ----
 // ラベル非表示スタイルは map-style.js(ZMAP_MAP_STYLE.hideLabels)
@@ -165,7 +169,7 @@ async function createGoogleMap(el,opts){
 }
 // ---- Google Maps 実地図モード(キーがあり読み込めた場合のみ。失敗時は下のダミー表示にフォールバック) ----
 let labelsAlways=false,gMode=false,gmap=null,gpano=null,gcircle=null,gpin=null,gtruth=null,gline=null;
-const G_ZOOM=[16,14,12,10,7],G_SVZ=[2.6,2,1.4,0.8,0];
+const G_ZOOM=[16,14,12,10,7],G_SVZ=[1.7,1.2,0.7,0.3,0];   // ストリートビューの拡大率(視野 約55°→180°)
 async function initGoogle(){
   if(!MAPS_KEY)return;
   try{
@@ -176,6 +180,7 @@ async function initGoogle(){
     gpano=new gm.StreetViewPanorama($("gsv"),{visible:true,addressControl:false,linksControl:false,fullscreenControl:false,motionTracking:false,motionTrackingControl:false,showRoadLabels:false,imageDateControl:false,zoomControl:true,panControl:true,enableCloseButton:false});
     // addressControl:false でも、非表示の住所欄に「町名, 県名」が残るので消す
     new MutationObserver(()=>$("gsv").querySelectorAll('a[href$="#"]').forEach(a=>{if(a.textContent.trim())a.textContent="";})).observe($("gsv"),{subtree:true,childList:true,characterData:true});
+    $("gsv").addEventListener("pointerdown",()=>{svTouched=true;cancelAnimationFrame(svAnim);});
     gMode=true;document.body.classList.add("gm");$("svtitle").textContent="ストリートビュー";
     gm.event.trigger(gmap,"resize");
     render();
@@ -196,14 +201,26 @@ function gSetView(){
   const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
   // 回答後は答えを隠す必要がないので、地名を出して自由に動かせるようにする
   gmap.setOptions(answered?{gestureHandling:"greedy",zoomControl:true,styles:[]}:{gestureHandling:"none",zoomControl:false,styles:labelsAlways?[]:window.ZMAP_MAP_STYLE.hideLabels});
-  if(answered&&!pin){gmap.setCenter(c);gmap.setZoom(13);}
+  // 回答後は県や周りの都市名が見える広さにして、どのあたりかを分かるようにする
+  if(answered&&!pin){gmap.setCenter(c);gmap.setZoom(8);}
   else if(answered){const b=new google.maps.LatLngBounds(c);b.extend({lat:pin.lat,lng:pin.lon});gmap.fitBounds(b,60);
-    google.maps.event.addListenerOnce(gmap,"idle",()=>{if(gmap.getZoom()>15)gmap.setZoom(15);});}
+    google.maps.event.addListenerOnce(gmap,"idle",()=>{if(gmap.getZoom()>8)gmap.setZoom(8);});}
   else{gmap.panTo(c);gmap.setZoom(G_ZOOM[stage]);}
   gDrawMap();
 }
+// 桁が外れるたびに視野を滑らかに広げ、ぐるっと一回り見回す(ドラッグしたらそこで止める)
+let svAnim=0,svTouched=false;
+function svZoomTo(z){const z0=gpano.getZoom()||0,t0=performance.now();cancelAnimationFrame(svAnim);
+  (function f(n){const k=Math.min(1,(n-t0)/700);gpano.setZoom(z0+(z-z0)*(1-Math.pow(1-k,3)));if(k<1)svAnim=requestAnimationFrame(f);else svSweep();})(t0);}
+function svSweep(){const pov=gpano.getPov(),h0=pov.heading||0,t0=performance.now(),rr=r;svTouched=false;
+  (function f(n){if(svTouched||rr!==r||answered)return;const k=Math.min(1,(n-t0)/6000),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    gpano.setPov({heading:(h0+360*e)%360,pitch:pov.pitch||0});if(k<1)svAnim=requestAnimationFrame(f);})(t0);}
 function gDrawSV(){
-  const q=ROUNDS[r];$("fov").textContent=`視野 ${[30,45,60,85,110][stage]}°`;
+  const q=ROUNDS[r],z=G_SVZ[stage];$("fov").textContent=`視野 約${Math.round(180/2**z)}°`;
+  // 5桁(ヒント2段目)からは歩いて周りを見に行ける
+  const walk=stage>=2||answered;gpano.setOptions({linksControl:walk,clickToGo:walk});
+  if(gpano.__r===r&&gpano.__s!==stage){gpano.__s=stage;svZoomTo(z);return;}
+  gpano.__s=stage;
   if(gpano.__r!==r&&q.pano){gpano.__r=r;gpano.setPano(q.pano);gpano.setPov({heading:q.heading||0,pitch:0});gpano.setZoom(G_SVZ[stage]);}
   else if(gpano.__r!==r){gpano.__r=r;
     new google.maps.StreetViewService().getPanorama({location:{lat:q.lat,lng:q.lon},radius:300,source:"outdoor"},(d,st)=>{
@@ -350,10 +367,10 @@ function drawZip(){
   $("steps").innerHTML=[0,1,2,3,4].map(i=>`<i class="${i<=stage?"on":""}"></i>`).join("");
   $("area").textContent=`半径 約${RADIUS_KM[stage]}km`;
 }
-function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;$("total").textContent=`合計 ${fmt(total)}点`;updateLadder();}
+function render(){drawMap();drawSV();drawZip();$("round").textContent=`ラウンド ${r+1}/${ROUNDS.length}`;{const el=$("total"),tx=`🏆 ${fmt(total)}点`;if(el.textContent!==tx){el.textContent=tx;if(total>0){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}}}updateLadder();}
 const STAGE_MS=20000;let deadline=0;
 function updateLadder(){
-  $("ladder").innerHTML=POINTS.map((p,i)=>`<div class="rung ${i===stage?"now":i<stage?"past":""}"><span>${p}点</span><small>${7-i}桁</small></div>`).join("");
+  $("ladder").innerHTML=POINTS.map((p,i)=>`<div class="rung ${i===stage?"now":i<stage?"past":answered?"":"next"}" data-i="${i}" ${i>stage&&!answered?`role="button" title="${7-i}桁までヒントを広げる"`:""}><span>${p}点</span><small>${7-i}桁</small></div>`).join("");
   $("potential").innerHTML=answered?"":`いま当てると <b>${POINTS[stage]}点</b>`;
 }
 function tick(){
@@ -365,8 +382,8 @@ function tick(){
   $("cdtxt").innerHTML=`次のヒントまで <b>${Math.ceil(left/1000)}</b> 秒 — 広がると ${POINTS[stage+1]}点 に下がります`;
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
-function widen(){if(answered||stage>=4)return;stage++;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
-function hint(){const m=MODES[mode];$("hint").innerHTML=`<span><b>${m.what}</b>を当てよう(郵便番号 7桁で10点 → 3桁で2点)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう(地図はヒントが広がると広がります)</span>`;$("dbadge").textContent=m.label;}
+function widen(to){const n=Math.min(4,to??stage+1);if(answered||n<=stage)return;stage=n;$("widen").disabled=stage>=4;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
+function hint(){const m=MODES[mode];$("hint").innerHTML=`<span><b>${m.what}</b>を当てよう(郵便番号 7桁で10点 → 3桁で2点)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう。桁が外れるたびに地図とストリートビューの視野が広がり、5桁からはストリートビューを歩いて周りを見られます</span>`;$("dbadge").textContent=m.label;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
@@ -432,29 +449,57 @@ function submitAnswer(){
   }else{
     showResult(`<div class="big">😢 ハズレ</div><div class="pts">0点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">あなたの答え: ${esc(mine)}(違った項目: ${wrong.join("・")})</div>`,"lose",false);
   }
+  showLocal(q);
   $("reveal").innerHTML=`<small>正解の場所</small><b>${fullAnswer(q)}</b><span>〒${q.zip}</span>`;$("reveal").className="reveal show";
-  document.body.classList.add("revealed");
   $("widen").disabled=true;$("next").style.display="";
   $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
   render();requestAnimationFrame(()=>setVB(vbFor(stage,true)));
 }
+// ---- 回答後: その県の名産・名所と、市区町村の紹介(Wikipedia の要約。取れなければ出さない) ----
+function showLocal(q){
+  const m=(window.ZMAP_MEIBUTSU||{})[q.pref];
+  const box=document.createElement("div");box.className="local";
+  box.innerHTML=(m?`<div><b>🍱 ${esc(q.pref)}の名産</b> ${m[0].map(esc).join("・")}</div><div><b>📸 名所</b> ${m[1].map(esc).join("・")}</div>`:"")+`<div class="wiki"></div>`;
+  $("result").appendChild(box);
+  const ward=q.cityMain&&q.city!==q.cityMain?q.city.slice(q.cityMain.length):"";
+  const titles=[ward?`${ward} (${q.cityMain})`:q.city,`${q.city} (${q.pref})`,q.cityMain].filter((t,i,a)=>t&&a.indexOf(t)===i);
+  const rr=r;
+  (async()=>{for(const t of titles){try{
+    const res=await fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(t)}`);if(!res.ok)continue;
+    const d=await res.json();if(d.type!=="standard"||!d.extract||rr!==r)continue;
+    const ex=d.extract.length>120?d.extract.slice(0,120)+"…":d.extract;
+    box.querySelector(".wiki").innerHTML=`<b>🏙 ${esc(d.title)}</b> ${esc(ex)} <a href="${esc(d.content_urls.mobile.page)}" target="_blank" rel="noopener">Wikipedia</a>`;return;
+  }catch(e){}}})();
+}
 const fullAnswer=q=>[q.pref,q.city,q.town,q.num].filter(Boolean).join(" ");
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-$("widen").onclick=widen;
+$("widen").onclick=()=>widen();
+$("ladder").onclick=e=>{const el=e.target.closest(".rung.next");if(el)widen(+el.dataset.i);};
 function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
+// ---- 得点の履歴(この端末の localStorage に最新30件) ----
+function saveHistory(marks){
+  let h=[];try{h=JSON.parse(localStorage.getItem("zmap:history")||"[]");}catch(e){}
+  const now=new Date(),me={at:now.toISOString(),total,mode,daily:DAILY,marks};
+  h.unshift(me);h=h.slice(0,30);try{localStorage.setItem("zmap:history",JSON.stringify(h));}catch(e){}
+  const best=Math.max(...h.map(x=>x.total)),d2=n=>String(n).padStart(2,"0");
+  const when=iso=>{const d=new Date(iso);return `${d.getFullYear()}/${d2(d.getMonth()+1)}/${d2(d.getDate())} ${d2(d.getHours())}:${d2(d.getMinutes())}`;};
+  return `<div class="sub">${when(me.at)} に達成${total>=best&&h.length>1?" 🎊 自己ベスト!":""}</div>`+
+    `<table class="hist"><caption>得点の履歴(最高 ${fmt(best)}点)</caption><tr><th>日時</th><th>モード</th><th></th><th>得点</th></tr>`+
+    h.slice(0,10).map((x,i)=>`<tr class="${i===0?"now":""}"><td>${when(x.at)}${x.daily?" 📅":""}</td><td>${esc((MODES[x.mode]||{}).label||"")}</td><td>${esc(x.marks||"")}</td><td class="p">${fmt(x.total)}点${x.total===best?" 👑":""}</td></tr>`).join("")+`</table>`;
+}
 $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
     const marks=results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜");
-    const shareText=`zmap${DAILY?" デイリー "+TODAY:""} ${fmt(total)}点 ${marks.join("")}\n${location.origin}${location.pathname}${DAILY?"?daily=1":""}`;
+    const shareText=`Zapper${DAILY?" デイリー "+TODAY:""} ${fmt(total)}点 ${marks.join("")}\n${location.origin}${location.pathname}${DAILY?"?daily=1":""}`;
     showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点・${MODES[mode].label})<br>${results.map((x,i)=>marks[i]+(x.hit?`${7-x.stage}桁`:"")).join(" ")}</div>`+
-      `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">結果を共有</button>${zmapNative.inApp?'<button id="lb">ランキング</button>':""}</div>`,"final",total>0);
+      `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">結果を共有</button>${zmapNative.inApp?'<button id="lb">ランキング</button>':""}</div>`+saveHistory(marks.join("")),"final",total>0);
     $("share").onclick=()=>zmapNative.share(shareText);
     if($("lb"))$("lb").onclick=zmapNative.leaderboard;
     zmapNative.score(total,DAILY);
     zmapNative.askReminder();
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
-  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;$('pinst').style.display='none';$("reveal").className="reveal";document.body.classList.remove("revealed");vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
-  render();if(gMode)gSetView();startIntro(()=>{hint();schedule();});
+  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;$('pinst').style.display='none';$("reveal").className="reveal";vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
+  render();if(gMode)gSetView();startIntro(()=>{hint();schedule();},true);
 };
 
 // ---- オープニング: 地球儀 → ダーツ → ズームイン ----
@@ -475,7 +520,7 @@ const LAND=[
 ];
 const ICE=[[[-55,60],[-45,60],[-20,70],[-18,80],[-40,83],[-60,80],[-70,77],[-55,70]]];
 const D2R=Math.PI/180,TILT=22*D2R;
-function startIntro(done){
+function startIntro(done,auto){
   const intro=$("intro"),cv=$("ic"),ctx=cv.getContext("2d");
   let finished=false,raf,tThrow=null,a0=0,l0F=0,curL0=0;
   intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
@@ -488,7 +533,7 @@ function startIntro(done){
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
   $("skip").onclick=()=>{pick();finish();};
   $("throw").onclick=()=>{
-    if(tThrow!==null)return;
+    if(tThrow!==null||finished)return;
     pick();
     if(reduce){finish();return;}
     $("ctrl").style.display="none";
@@ -511,6 +556,7 @@ function startIntro(done){
     return [cx+R*x,cy-R*y,z>=0];
   }
   const start=performance.now();
+  if(auto){$("ctrl").style.display="none";setTimeout(()=>$("throw").onclick(),600);}
   function frame(now){
     const t=(now-start)/1000;const tau=tThrow===null?-1:t-tThrow;
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -584,11 +630,15 @@ function startIntro(done){
     ctx.fillStyle="#d4a017";for(const s of [-1,1]){ctx.beginPath();ctx.arc(cx,cy+s*R*1.08,R*.035,0,7);ctx.fill();}
     // 人物(頭を大きめにした、ちょっとリアルなデフォルメ)
     const u=Math.min(w,h)/540,px0=w*0.2,bob=tau<0?Math.sin(t*3)*1.5*u:0,py0=h*0.8;
-    const thr=Math.max(0,Math.min(1,tau/0.25)),lean=tau<0?0:Math.min(1,tau/0.3)*0.08;
-    const armA=-2.2+(thr<1?thr*2.6:2.6)-(tau<0?Math.sin(t*6)*0.05:0);
-    const sx0=px0+14*u,sy0=py0-126*u+bob;
-    const elbow=[sx0+Math.cos(armA-0.45)*40*u,sy0+Math.sin(armA-0.45)*40*u];
-    const hand=[sx0+Math.cos(armA)*78*u,sy0+Math.sin(armA)*78*u];
+    const leanAt=x=>x<0?0:Math.min(1,x/0.3)*0.08,lean=leanAt(tau),du=0.55*u,HOLD_A=-0.3;   // ダーツは頭の幅の半分くらいの大きさ
+    // 投げる腕: 肘を前に上げて構え、前腕だけを振り出す(ダーツの投げ方)。k=振り出し 0→1、f=フォロースルー 0→1
+    const sx0=px0+14*u,sy0=py0-126*u+bob,L1=42*u,L2=30*u;
+    const pose=(k,f,wig)=>{const a1=-0.15-0.15*k+0.3*f,a2=-1.75+1.6*k+0.5*f+wig,e=[sx0+Math.cos(a1)*L1,sy0+Math.sin(a1)*L1];
+      return{a2,e,h:[e[0]+Math.cos(a2)*L2,e[1]+Math.sin(a2)*L2]};};
+    const arm=pose(ease(tau<0?0:Math.min(1,tau/T_REL)),tau<T_REL?0:Math.min(1,(tau-T_REL)/0.3),tau<0?Math.sin(t*6)*0.04:0);
+    const leanPt=(p,a)=>{const dx=p[0]-px0,dy=p[1]-py0;return[px0+dx*Math.cos(a)-dy*Math.sin(a),py0+dx*Math.sin(a)+dy*Math.cos(a)];};
+    const relH=leanPt(pose(1,0,0).h,leanAt(T_REL));   // ダーツを放す位置(画面座標)
+    const relD=[relH[0]+Math.cos(HOLD_A)*10*u,relH[1]+Math.sin(HOLD_A)*10*u];
     const rr=(x,y,ww,hh,rad)=>{ctx.beginPath();ctx.moveTo(x+rad,y);ctx.arcTo(x+ww,y,x+ww,y+hh,rad);ctx.arcTo(x+ww,y+hh,x,y+hh,rad);ctx.arcTo(x,y+hh,x,y,rad);ctx.arcTo(x,y,x+ww,y,rad);ctx.closePath();};
     ctx.save();ctx.lineCap="round";ctx.lineJoin="round";
     const gs=ctx.createRadialGradient(px0,py0+4*u,2*u,px0,py0+4*u,46*u);gs.addColorStop(0,"rgba(0,0,0,.45)");gs.addColorStop(1,"rgba(0,0,0,0)");
@@ -603,10 +653,6 @@ function startIntro(done){
     ctx.fillStyle=hood;rr(px0-24*u,py0-142*u+bob,48*u,82*u,16*u);ctx.fill();                   // パーカー
     ctx.strokeStyle="rgba(255,255,255,.5)";ctx.lineWidth=2*u;ctx.beginPath();ctx.moveTo(px0-12*u,py0-82*u+bob);ctx.lineTo(px0+12*u,py0-82*u+bob);ctx.stroke();
     ctx.strokeStyle="#fff";ctx.lineWidth=1.6*u;for(const dx of [-5,5]){ctx.beginPath();ctx.moveTo(px0+dx*u,py0-138*u+bob);ctx.lineTo(px0+dx*u,py0-122*u+bob);ctx.stroke();}
-    // 投げる腕(構えている間は頭の後ろに回るので、頭より先に描く)
-    ctx.strokeStyle="#0369a1";ctx.lineWidth=13*u;ctx.beginPath();ctx.moveTo(sx0,sy0);ctx.lineTo(elbow[0],elbow[1]);ctx.stroke();
-    ctx.strokeStyle="#f6c9a3";ctx.lineWidth=10*u;ctx.beginPath();ctx.moveTo(elbow[0],elbow[1]);ctx.lineTo(hand[0],hand[1]);ctx.stroke();
-    ctx.fillStyle="#f6c9a3";ctx.beginPath();ctx.arc(hand[0],hand[1],7*u,0,7);ctx.fill();
     const skin=ctx.createRadialGradient(px0+6*u,py0-176*u+bob,4*u,px0,py0-168*u+bob,30*u);skin.addColorStop(0,"#ffe0c4");skin.addColorStop(1,"#efb88f");
     ctx.fillStyle="#efb88f";ctx.beginPath();ctx.ellipse(px0-24*u,py0-166*u+bob,6*u,8*u,0,0,7);ctx.fill(); // 耳
     ctx.fillStyle=skin;ctx.beginPath();ctx.arc(px0,py0-168*u+bob,28*u,0,7);ctx.fill();         // 頭
@@ -619,6 +665,21 @@ function startIntro(done){
     if(!blink){ctx.fillStyle="#fff";for(const ex of [7.2,19.2]){ctx.beginPath();ctx.arc(px0+ex*u,py0-168*u+bob,1.3*u,0,7);ctx.fill();}}
     ctx.fillStyle="rgba(244,114,182,.45)";for(const ex of [0,24]){ctx.beginPath();ctx.ellipse(px0+ex*u,py0-156*u+bob,5*u,3*u,0,0,7);ctx.fill();} // ほっぺ
     ctx.strokeStyle="#9a3412";ctx.lineWidth=2*u;ctx.beginPath();ctx.arc(px0+13*u,py0-155*u+bob,5*u,0.2*Math.PI,0.8*Math.PI);ctx.stroke(); // 口
+    // 投げる腕(顔の横で構えるので頭より手前に描く): 袖 → 袖口 → 前腕 → ダーツ → 手
+    const {e:el,h:hd,a2}=arm,holding=tau<T_REL,cs=Math.cos(a2),sn=Math.sin(a2);
+    const cuff=[el[0]+cs*11*u,el[1]+sn*11*u],wr=[hd[0]-cs*5*u,hd[1]-sn*5*u];
+    ctx.strokeStyle="#0369a1";ctx.lineWidth=14*u;ctx.beginPath();ctx.moveTo(sx0,sy0);ctx.lineTo(el[0],el[1]);ctx.lineTo(cuff[0],cuff[1]);ctx.stroke();
+    ctx.strokeStyle="#38bdf8";ctx.lineWidth=3.5*u;ctx.lineCap="butt";ctx.beginPath();ctx.moveTo(cuff[0]+sn*7.5*u,cuff[1]-cs*7.5*u);ctx.lineTo(cuff[0]-sn*7.5*u,cuff[1]+cs*7.5*u);ctx.stroke();ctx.lineCap="round";
+    ctx.strokeStyle="#efb88f";ctx.lineWidth=9*u;ctx.beginPath();ctx.moveTo(cuff[0]+cs*2*u,cuff[1]+sn*2*u);ctx.lineTo(wr[0],wr[1]);ctx.stroke();
+    const ha=holding?HOLD_A-lean:a2;   // 構え中はダーツを少し上向きに握る
+    if(holding)dart(hd[0]+Math.cos(ha)*10*u,hd[1]+Math.sin(ha)*10*u,ha,du);
+    ctx.save();ctx.translate(hd[0],hd[1]);ctx.rotate(ha);
+    ctx.fillStyle="#f6c9a3";ctx.strokeStyle="rgba(150,85,45,.5)";ctx.lineWidth=1.1*u;
+    const oval=(x,y,rx,ry,r)=>{ctx.beginPath();ctx.ellipse(x*u,y*u,rx*u,ry*u,r,0,7);ctx.fill();ctx.stroke();};
+    oval(-1,0,7.5,6.4,0);                                   // 手のひら
+    if(holding){oval(4.5,-4.6,4.4,2.5,0.25);oval(1,-6,3.8,2.3,0.1);oval(4.5,4.4,4.6,2.4,-0.3);} // 人差し指・中指で上から、親指で下から胴を挟む
+    else{oval(8,-1,6.5,3,0.05);oval(7,2.5,6,2.8,0.15);oval(2,-5.5,4,2.2,-0.5);}                 // 放した後は指を前に伸ばす
+    ctx.restore();
     ctx.restore();
     // ダーツ
     function dart(x,y,ang,scale){
@@ -628,18 +689,15 @@ function startIntro(done){
       ctx.fillStyle="#94a3b8";ctx.beginPath();ctx.moveTo(0,-2);ctx.lineTo(14,0);ctx.lineTo(0,2);ctx.fill(); // 針
       ctx.restore();
     }
-    const du=Math.max(1,u*1.3);
-    if(tau<T_REL){ // 構え中のダーツ
-      dart(hand[0]+14*u,hand[1]-6*u,-0.15,du*.7);
-    }else if(tau<T_HIT){
+    if(tau>=T_REL&&tau<T_HIT){
       const f=(tau-T_REL)/(T_HIT-T_REL);
-      const sx=hand[0]+14*u,sy=hand[1]-6*u;
+      const [sx,sy]=relD;
       const x=sx+(tp[0]-sx)*f,y=sy+(tp[1]-sy)*f-Math.sin(f*Math.PI)*90*u;
       const nx=sx+(tp[0]-sx)*(f+.02),ny=sy+(tp[1]-sy)*(f+.02)-Math.sin((f+.02)*Math.PI)*90*u;
-      dart(x,y,Math.atan2(ny-y,nx-x),du*(1-.3*f));
-    }else{
+      dart(x,y,Math.atan2(ny-y,nx-x),du*(1-.2*f));
+    }else if(tau>=T_HIT){
       const wob=Math.sin((tau-T_HIT)*40)*Math.exp(-(tau-T_HIT)*8)*0.12;
-      dart(tp[0]-10*du*.7,tp[1]-1,wob,du*.7);
+      dart(tp[0]-10*du,tp[1]-1,wob,du);
       // 命中リング
       const rr=(tau-T_HIT)*70;ctx.strokeStyle="rgba(255,255,255,"+Math.max(0,.8-(tau-T_HIT)*1.6)+")";ctx.lineWidth=3;ctx.beginPath();ctx.arc(tp[0],tp[1],rr,0,7);ctx.stroke();
     }
@@ -657,7 +715,7 @@ async function boot(){
   if(DAILY)ROUNDS=shuffled(DUMMY_ROUNDS,roundRandom());
   const dummy=why=>{ROUNDS=DAILY?shuffled(DUMMY_ROUNDS,roundRandom()):DUMMY_ROUNDS.slice();$("keybadge").textContent=why;};
   if(MAPS_KEY){
-    $("ctrl").style.display="none";$("title").innerHTML="zmap<small>出題地点を探しています…</small>";
+    $("ctrl").style.display="none";$("title").innerHTML="Zapper<small>出題地点を探しています…</small>";
     try{ROUNDS=await loadRandomRounds(5);}
     catch(e){console.warn(e);
       try{ROUNDS=await loadRoundsFromGeocoding(5);}catch(e2){console.warn(e2);dummy("地図を読み込めないため練習用の5問で遊んでいます");}}
