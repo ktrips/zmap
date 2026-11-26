@@ -20,7 +20,7 @@ struct ZmapApp: App {
     var body: some Scene {
         WindowGroup {
             WebView(url: router.url, generation: router.generation)
-                .ignoresSafeArea(.container, edges: .bottom)
+                .ignoresSafeArea()
                 .onAppear { GameCenter.authenticate() }
         }
     }
