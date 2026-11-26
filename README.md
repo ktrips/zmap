@@ -107,7 +107,7 @@ Firebase Hosting のカスタムドメインは、Firebase コンソールと DN
 
 ローカルで開く: `brew install xcodegen && cd ios && DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen && open Zmap.xcodeproj`
 
-ビルドはどちらのワークフローも GitHub Actions の `macos-26` ランナーで行い、Xcode 26 系を選ぶ(`ios-testflight.yml` の「Xcode 26 以降を選ぶ」ステップ)。より新しい SDK(iOS 27 など)でビルドするときは、ランナーにある Xcode のバージョン(`/Applications/Xcode_*.app`)と、そのステップの選択条件を合わせて変える。
+ビルドはどちらのワークフローも GitHub Actions の `xcode-27` ランナー(Xcode 27 入りのイメージ)で行い、`/Applications/Xcode_27*.app` の最新を選ぶ(iOS 27 SDK でビルドされる)。Xcode 26 に戻すときは、`runs-on` を `macos-26` に、Xcode を選ぶステップの `Xcode_27*` を `Xcode_26*` に変える。ローカルで Xcode 27 を使う場合も、`xcodegen` で作り直した `Zmap.xcodeproj` をそのまま開けばよい。
 
 ### Apple 側の準備(初回のみ)
 1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) で App ID `net.ktrips.zmap` を作り、**Game Center** を有効にする。
