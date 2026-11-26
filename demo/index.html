@@ -362,7 +362,7 @@ function tick(){
   const left=deadline-performance.now();
   if(left<=0){widen();return;}
   $("cdbar").style.width=(left/STAGE_MS*100)+"%";$("cdbar").className=left<5000?"low":"";
-  $("cdtxt").innerHTML=`次のヒントまで <b>${(left/1000).toFixed(1)}</b> 秒 — 広がると ${POINTS[stage+1]}点 に下がります`;
+  $("cdtxt").innerHTML=`次のヒントまで <b>${Math.ceil(left/1000)}</b> 秒 — 広がると ${POINTS[stage+1]}点 に下がります`;
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
 function widen(){if(answered||stage>=4)return;stage++;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
