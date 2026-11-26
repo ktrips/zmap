@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <pattern id="check" width="44" height="44" patternUnits="userSpaceOnUse" patternTransform="rotate(8)">
+      <rect width="44" height="44" fill="#c99a5b"/>
+      <path d="M0 11H44M0 33H44" stroke="#7a4b22" stroke-width="7" opacity=".45"/>
+      <path d="M11 0V44M33 0V44" stroke="#7a4b22" stroke-width="7" opacity=".45"/>
+    </pattern>
+    <linearGradient id="hatShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".25"/>
+      <stop offset=".6" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".3"/>
+    </linearGradient>
+    <radialGradient id="glass" cx=".35" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff" stop-opacity=".35"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#0b3a55" stop-opacity=".18"/>
+    </radialGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a86b38"/>
+      <stop offset="1" stop-color="#5b3a1e"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset=".5" stop-color="#e0a92a"/>
+      <stop offset="1" stop-color="#9a6b12"/>
+    </linearGradient>
+    <clipPath id="lens"><circle cx="480" cy="600" r="226"/></clipPath>
+  </defs>
+
+  <!-- 地図(背景) -->
+  <rect width="1024" height="1024" fill="#dcebc9"/>
+  <path d="M0 690C150 640 150 860 330 900C450 930 430 1024 430 1024H0Z" fill="#8fcbe0"/>
+  <path d="M1024 120C900 160 860 60 760 0H1024Z" fill="#8fcbe0"/>
+  <path d="M640 120C700 90 780 140 760 210C740 270 650 260 630 210Z" fill="#bcdca0"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" opacity=".9">
+    <path d="M0 270C260 320 600 190 1024 280" stroke-width="18"/>
+    <path d="M820 0C760 300 860 600 1024 720" stroke-width="18"/>
+    <path d="M0 470C200 450 300 520 420 500" stroke-width="12"/>
+    <path d="M700 1024C720 900 860 860 1024 880" stroke-width="12"/>
+  </g>
+  <rect width="1024" height="1024" fill="#0a2a40" opacity=".06"/>
+
+  <!-- 虫眼鏡の柄 -->
+  <path d="M676 796L900 1020" stroke="url(#wood)" stroke-width="96" stroke-linecap="round"/>
+  <path d="M664 784L730 850" stroke="url(#brass)" stroke-width="112" stroke-linecap="butt"/>
+
+  <!-- レンズの中(拡大された地図とピン) -->
+  <g clip-path="url(#lens)">
+    <rect x="200" y="320" width="560" height="560" fill="#eaf4dd"/>
+    <path d="M200 700C300 690 330 800 420 840C480 870 470 900 470 900H200Z" fill="#8fcbe0"/>
+    <path d="M560 380h120v90h-120z" fill="#c8e4ad"/>
+    <g fill="none" stroke-linecap="round">
+      <path d="M200 520C360 560 520 470 780 540" stroke="#fff" stroke-width="34"/>
+      <path d="M600 320C560 480 620 640 560 900" stroke="#ffd166" stroke-width="38"/>
+      <path d="M300 320C330 420 300 520 340 620" stroke="#fff" stroke-width="24"/>
+      <path d="M380 700C450 690 560 720 760 680" stroke="#fff" stroke-width="24"/>
+    </g>
+    <path d="M480 712C446 660 418 628 418 592a62 62 0 1 1 124 0C542 628 514 660 480 712Z" fill="#e11d48"/>
+    <path d="M480 712C468 694 456 678 446 662" stroke="#9f1239" stroke-width="6" fill="none" opacity=".4"/>
+    <circle cx="480" cy="592" r="30" fill="#fff"/>
+    <path d="M462 578h36M462 591h36M480 591v28" stroke="#e11d48" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="480" cy="600" r="226" fill="url(#glass)"/>
+    <path d="M322 540A170 170 0 0 1 430 420" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" opacity=".55"/>
+  </g>
+
+  <!-- レンズの縁 -->
+  <circle cx="480" cy="600" r="252" fill="none" stroke="#1f2a44" stroke-width="54"/>
+  <circle cx="480" cy="600" r="229" fill="none" stroke="url(#brass)" stroke-width="10"/>
+
+  <!-- パイプ(キャラバッシュ型) -->
+  <path d="M236 700C200 706 178 724 168 752" fill="none" stroke="#2a1a10" stroke-width="22" stroke-linecap="round"/>
+  <path d="M108 752h112c0 70-18 108-56 108s-56-38-56-108Z" fill="url(#wood)"/>
+  <ellipse cx="164" cy="752" rx="56" ry="15" fill="#2a1a10"/>
+  <path d="M150 720C120 680 176 650 146 606C124 574 150 548 138 520" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".75"/>
+
+  <!-- 鹿撃ち帽 -->
+  <path d="M352 336Q250 328 168 392Q262 406 360 380Z" fill="url(#check)" stroke="#5b3a1e" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M608 336Q710 328 792 392Q698 406 600 380Z" fill="url(#check)" stroke="#5b3a1e" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M296 372C292 208 372 122 480 122C588 122 668 208 664 372Q480 416 296 372Z" fill="url(#check)" stroke="#5b3a1e" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M296 372C292 208 372 122 480 122C588 122 668 208 664 372Q480 416 296 372Z" fill="url(#hatShade)"/>
+  <path d="M480 124V392M390 150C360 220 352 300 360 384M570 150C600 220 608 300 600 384" fill="none" stroke="#5b3a1e" stroke-width="6" opacity=".55"/>
+  <path d="M300 346Q480 392 660 346" fill="none" stroke="#5b3a1e" stroke-width="14" opacity=".55"/>
+  <!-- 頭頂で結んだ耳あてのリボン -->
+  <ellipse cx="446" cy="116" rx="36" ry="18" transform="rotate(-18 446 116)" fill="#a86b38" stroke="#5b3a1e" stroke-width="6"/>
+  <ellipse cx="514" cy="116" rx="36" ry="18" transform="rotate(18 514 116)" fill="#a86b38" stroke="#5b3a1e" stroke-width="6"/>
+  <circle cx="480" cy="122" r="14" fill="#7a4b22"/>
+</svg>

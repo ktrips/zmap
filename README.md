@@ -101,6 +101,8 @@ Firebase Hosting のカスタムドメインは、Firebase コンソールと DN
 | 共有シート | 終了画面の「結果を共有」(例: `zmap デイリー 2026-11-26 23.4点 🟨⬜🟩🟩⬜`) |
 | 通知 | 初めて遊び終えたときに1回だけ許可を聞き、毎朝9時にデイリー問題を知らせる。タップでデイリー問題を開く |
 
+アイコン: 元は [demo/favicon.svg](demo/favicon.svg)(鹿撃ち帽とパイプの虫眼鏡で地図を推理する探偵)。PNG は `rsvg-convert -w 1024 -h 1024 demo/favicon.svg | magick - -alpha remove -alpha off PNG24:ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` のように作る(App Store のアイコンは透過なし)。
+
 ローカルで開く: `brew install xcodegen && cd ios && DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen && open Zmap.xcodeproj`
 
 ### Apple 側の準備(初回のみ)
