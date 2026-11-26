@@ -73,3 +73,36 @@ Firebase Hosting のカスタムドメインは、Firebase コンソールと DN
 4. 検証と SSL 証明書の発行を待つ(数分〜最大24時間程度)。完了すると https://zmap.ktrips.net で開ける。
 5. **Maps API キーのリファラ制限に追加する(重要):** Google Cloud コンソール → 認証情報 → 該当キー → HTTP リファラに
    `https://zmap.ktrips.net/*` を追加する。忘れると、本番で地図が読み込めない。
+
+## デイリー問題
+`?daily=1` を付けて開くと、端末の日付から決まる5問を出題する(同じ日は全員同じ問題)。画面右上の「📅 今日の問題」から切り替えられる。
+
+## iPhone アプリ(`ios/`)
+画面は https://zmap.ktrips.net をそのまま表示し、ネイティブは次だけを受け持つ。Web からは `demo/native.js` 経由で呼び、ブラウザで開いたときは何もしない(共有だけは Web Share API かクリップボードで代わりにする)。
+
+| 機能 | いつ |
+|---|---|
+| 振動 | ピンを立てたとき・ヒントが広がったとき(軽く)、正解・不正解のとき |
+| Game Center | 起動時にサインイン。ゲーム終了時にスコアを送り、終了画面の「ランキング」で表示 |
+| 共有シート | 終了画面の「結果を共有」(例: `zmap デイリー 2026-11-26 23.4点 🟨⬜🟩🟩⬜`) |
+| 通知 | 初めて遊び終えたときに1回だけ許可を聞き、毎朝9時にデイリー問題を知らせる。タップでデイリー問題を開く |
+
+ローカルで開く: `brew install xcodegen && cd ios && DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen && open Zmap.xcodeproj`
+
+### Apple 側の準備(初回のみ)
+1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) で App ID `net.ktrips.zmap` を作り、**Game Center** を有効にする。
+2. App Store Connect で新規アプリ(バンドル ID `net.ktrips.zmap`)を作る。プライバシーポリシーの URL は `https://zmap.ktrips.net/privacy.html`。
+3. App Store Connect → アプリ → **Game Center** でランキングを2つ作る。スコアは合計点の10倍の整数で送るので、書式は「固定小数点・小数第1位」にする。
+   - `zmap.daily`: 繰り返し(毎日リセット)。デイリー問題のスコアだけが入る
+   - `zmap.best`: 通常(最高スコアを残す)。すべてのゲームのスコアが入る
+4. App Store Connect → ユーザとアクセス → 統合 → **App Store Connect API** でキー(アクセス: App Manager)を作り、`.p8` をダウンロードする。
+
+### TestFlight に配信する
+リポジトリの Settings → Secrets and variables → Actions に次を登録し、Actions → **ios-testflight** → Run workflow で実行する(ビルド番号は実行回数で自動的に増える)。`ios/` を変更して push すると **ios-build** が署名なしのビルド確認だけを行う。
+
+| 種類 | 名前 | 内容 |
+|---|---|---|
+| Secret | `ASC_KEY_ID` | API キーの ID |
+| Secret | `ASC_ISSUER_ID` | Issuer ID |
+| Secret | `ASC_KEY_P8` | `.p8` ファイルの中身 |
+| Variable | `DEVELOPMENT_TEAM` | Apple Developer の Team ID |

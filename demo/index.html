@@ -13,6 +13,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-app
 header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between;margin-bottom:12px}
 h1{font-size:20px;margin:0}
 .badge{font-size:12px;color:var(--mute);border:1px solid var(--line);border-radius:99px;padding:2px 10px}
+a.badge{color:var(--acc);text-decoration:none}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 select,button{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
 button.primary{background:var(--acc);color:#fff;border-color:var(--acc)}
@@ -81,6 +82,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <header>
   <h1>zmap <span class="badge">デモ(ダミーデータ)</span></h1>
   <div class="bar">
+    <a id="mode" class="badge" href="?daily=1">📅 今日の問題</a>
     <span id="dbadge" class="badge"></span>
     <span id="keybadge" class="badge"></span>
     <button id="replay" title="オープニングをもう一度">▶ 最初から</button>
@@ -120,6 +122,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <div id="intro"><div id="title">zmap<small>郵便番号で場所を当てよう</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="idiff"><option value="VE">VE(国)×1</option><option value="Easy">Easy(県)×2</option><option value="Mid" selected>Mid(市)×3</option><option value="Diff">Difficult(町域)×4</option><option value="VD">VD(完全な住所)×5</option></select><button id="throw" class="primary">🎯 投げる</button></div><button id="skip">スキップ</button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
+<script src="native.js"></script>
 <script>
 // ---- Google Maps API キー(config.js 由来。未設定ならダミーデータのデモ) ----
 // ラベル非表示スタイルは map-style.js(ZMAP_MAP_STYLE.hideLabels)
@@ -151,7 +154,7 @@ async function initGoogle(){
     const gm=await loadGoogleMaps();
     gmap=await createGoogleMap($("gmap"),{center:{lat:35.68,lng:139.76},zoom:5,streetViewControl:false,fullscreenControl:false});
     geocoder=new gm.Geocoder();
-    gmap.addListener("click",e=>{if(answered)return;pin={lon:e.latLng.lng(),lat:e.latLng.lat()};gDrawMap();reverseAndFill(pin.lat,pin.lon);});
+    gmap.addListener("click",e=>{if(answered)return;pin={lon:e.latLng.lng(),lat:e.latLng.lat()};zmapNative.haptic("light");gDrawMap();reverseAndFill(pin.lat,pin.lon);});
     gpano=new gm.StreetViewPanorama($("gsv"),{visible:true,addressControl:false,linksControl:false,fullscreenControl:false,motionTracking:false,showRoadLabels:false,zoomControl:true,panControl:true,enableCloseButton:false});
     gMode=true;document.body.classList.add("gm");$("svtitle").textContent="ストリートビュー(Google)";
     document.querySelector("#map").closest(".card").querySelector("h2 span").textContent="地図(Google Map・タップで目印のピン)";
@@ -196,6 +199,13 @@ let ROUNDS=[
 const DUMMY_ROUNDS=ROUNDS.slice();
 const ZIP_POOL=["060-0042","040-0063","030-0801","020-0021","980-0021","010-0951","990-0042","960-8031","310-0011","320-0026","371-0026","330-0062","260-0013","100-0005","160-0023","150-0002","220-0011","950-0087","930-0005","920-0961","380-0834","400-0031","420-0853","460-0008","500-8833","510-0075","520-0043","600-8216","530-0001","650-0001","640-8227","680-0011","690-0887","700-0901","730-0011","750-0025","760-0017","790-0003","800-0031","810-0001","840-0801","850-0862","860-0001","870-0042","880-0001","890-0053","900-0015"];
 const JP_BOUNDS={lat:[24,46],lon:[122,146]};
+// ---- デイリー問題(?daily=1): 端末の日付から決まる順番で選ぶので、同じ日は全員同じ5問になる ----
+const DAILY=new URLSearchParams(location.search).get("daily")==="1";
+const TODAY=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
+function seeded(s){let a=[...s].reduce((h,c)=>Math.imul(h^c.charCodeAt(0),16777619),2166136261)>>>0;
+  return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
+const shuffled=(arr,rnd)=>{const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const roundRandom=()=>DAILY?seeded("zmap:"+TODAY):Math.random;
 function parseJP(comps){ // address_components(language=ja)→ {pref,city,town,num}
   const g=t=>{const c=comps.find(c=>c.types.includes(t));return c?c.long_name:"";};
   const loc=g("locality"),ward=g("sublocality_level_1");
@@ -217,7 +227,7 @@ async function loadRoundsFromGeocoding(count=5){
   const maps=await loadGoogleMaps();
   const {Geocoder}=await maps.importLibrary("geocoding");
   const geocoder=new Geocoder();
-  const pool=ZIP_POOL.slice().sort(()=>Math.random()-.5),got=[];
+  const pool=shuffled(ZIP_POOL,roundRandom()),got=[];
   while(got.length<count&&pool.length){
     const batch=pool.splice(0,count-got.length);
     const rs=await Promise.all(batch.map(z=>geocodeZip(geocoder,z).catch(()=>null)));
@@ -315,7 +325,7 @@ function tick(){
   $("cdtxt").innerHTML=`次のヒントまで <b>${(left/1000).toFixed(1)}</b> 秒 — 広がると ×${STAGE_BONUS[stage+1]} に下がります`;
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
-function widen(){if(answered||stage>=4)return;stage++;deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
+function widen(){if(answered||stage>=4)return;stage++;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
 function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
@@ -324,6 +334,7 @@ $("map").addEventListener("click",e=>{
   const rect=$("map").getBoundingClientRect();
   const x=vb.x+(e.clientX-rect.left)/rect.width*vb.w,y=vb.y+(e.clientY-rect.top)/rect.height*vb.h;
   pin={lon:LON0+x/W*(LON1-LON0),lat:LAT1-y/H*(LAT1-LAT0)};
+  zmapNative.haptic("light");
   drawMap();
   reverseAndFill(pin.lat,pin.lon);
 });
@@ -422,6 +433,7 @@ function submitAnswer(){
   total=Math.round((total+pts)*10)/10;results.push({d,hit:ok,pts,stage});
   const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
   const wrong=f.filter(k=>k==="num"?digits(v.num)!==digits(q.num):v[k]!==truth[k]).map(k=>FLABEL[k].replace(/(.*)/,"$1").split("(")[0]);
+  zmapNative.haptic(ok?"success":"error");
   if(ok){
     const cheer=stage===0?"最速で的中!天才!":pts>=10?"お見事!":"ナイス!";
     showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${fmt(pts)}点</div><div class="sub">${cheer} ${DIFF[d].label}: ${ans}<br>${DIFF[d].mult}(難易度)× ${bonus}(早撃ちボーナス)</div>`,"win",true);
@@ -436,7 +448,14 @@ $("widen").onclick=widen;
 function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
 $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
-    showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点)<br>${results.map(x=>(x.hit?(x.stage===0?"🟨":"🟩"):"⬜")+x.d).join(" ")}<br>共有文: zmap ${fmt(total)}点 ${results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜").join("")}</div>`,"final",total>0);
+    const marks=results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜");
+    const shareText=`zmap${DAILY?" デイリー "+TODAY:""} ${fmt(total)}点 ${marks.join("")}\n${location.origin}${location.pathname}${DAILY?"?daily=1":""}`;
+    showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点)<br>${results.map((x,i)=>marks[i]+x.d).join(" ")}</div>`+
+      `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">結果を共有</button>${zmapNative.inApp?'<button id="lb">ランキング</button>':""}</div>`,"final",total>0);
+    $("share").onclick=()=>zmapNative.share(shareText);
+    if($("lb"))$("lb").onclick=zmapNative.leaderboard;
+    zmapNative.score(total,DAILY);
+    zmapNative.askReminder();
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
   cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;reverseSeq++;$('pinst').style.display='none';vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
   render();if(gMode)gSetView();startIntro(()=>{hint();schedule();});
@@ -581,10 +600,12 @@ function startIntro(done){
 }
 $("keybadge").textContent=MAPS_KEY?"Maps APIキー: 設定済み":"Maps APIキー: 未設定(ダミー)";
 async function boot(){
+  if(DAILY){$("mode").textContent=`📅 デイリー ${TODAY.slice(5).replace("-","/")} · フリーで遊ぶ`;$("mode").href=location.pathname;}
+  if(DAILY)ROUNDS=shuffled(DUMMY_ROUNDS,roundRandom());
   if(MAPS_KEY){
     $("keybadge").textContent="出題地点を取得中…";
     try{ROUNDS=await loadRoundsFromGeocoding(5);$("keybadge").textContent="Maps APIキー: 設定済み(郵便番号→座標を取得)";$("dbadge").textContent="";}
-    catch(e){console.warn(e);ROUNDS=DUMMY_ROUNDS.slice();$("keybadge").textContent="Geocoding失敗: ダミー5地点で開始";}
+    catch(e){console.warn(e);ROUNDS=DAILY?shuffled(DUMMY_ROUNDS,roundRandom()):DUMMY_ROUNDS.slice();$("keybadge").textContent="Geocoding失敗: ダミー5地点で開始";}
   }
   vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
   initGoogle().then(()=>{if(gMode)setVB(vbFor(stage),true);});

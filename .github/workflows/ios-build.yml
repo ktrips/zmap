@@ -1,0 +1,17 @@
+name: ios-build
+# zmap の iOS アプリ(ios/)がビルドできるかを確認する。署名なしのシミュレータ向けビルド。
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: cd ios && DEVELOPMENT_TEAM= xcodegen
+      - run: |
+          cd ios
+          xcodebuild -project Zmap.xcodeproj -scheme Zmap -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -40

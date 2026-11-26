@@ -1,0 +1,45 @@
+# zmap の iOS アプリ。画面は Web(demo/ を Firebase Hosting に置いたもの)をそのまま表示し、
+# ネイティブは「振動」「Game Center のランキング」「共有シート」「デイリー問題の通知」を受け持つ(Web からは native.js 経由で呼ぶ)。
+# Xcode プロジェクトは XcodeGen で生成する:  brew install xcodegen && cd ios && DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen && open Zmap.xcodeproj
+name: Zmap
+options:
+  bundleIdPrefix: net.ktrips
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ${DEVELOPMENT_TEAM}
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1"  # iPhone 専用(iPad 対応にすると4方向の向きが必須になる)
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Zmap:
+    type: application
+    platform: iOS
+    sources: [Sources/App]
+    entitlements:
+      path: Sources/App/Zmap.entitlements
+      properties:
+        com.apple.developer.game-center: true
+    info:
+      path: Sources/App/Info.plist
+      properties:
+        CFBundleDisplayName: zmap
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIRequiredDeviceCapabilities: [arm64]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.ktrips.zmap
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - sdk: GameKit.framework
+schemes:
+  Zmap:
+    build:
+      targets:
+        Zmap: all
