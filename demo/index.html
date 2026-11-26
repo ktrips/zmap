@@ -39,6 +39,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .result .big{font-size:30px;font-weight:800;line-height:1.2}
 .result .pts{font-size:46px;font-weight:900;line-height:1.1;margin:4px 0}
 .result .sub{font-size:13px;opacity:.85}
+.result .answer{font-size:24px;font-weight:900;line-height:1.3;margin:6px 0 8px}
+.reveal{display:none;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--acc2)}
+.reveal.show{display:block;animation:pop .4s ease-out}
+.reveal small{display:block;font-size:12px;color:var(--mute)}
+.reveal b{display:block;font-size:30px;line-height:1.25;font-weight:900}
+.reveal span{font:600 14px ui-monospace,Menlo,monospace;color:var(--mute)}
+body.revealed #mapcard{grid-column:1/-1}
+body.revealed #gmap{height:620px}
+@media(max-width:720px){.reveal b{font-size:23px}.result .answer{font-size:20px}body.revealed #gmap{height:460px}}
 .result .conf{position:absolute;top:-10px;width:8px;height:12px;border-radius:2px;animation:fall 1.6s ease-in forwards;pointer-events:none}
 @keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes fall{to{transform:translateY(240px) rotate(540deg);opacity:0}}
@@ -109,8 +118,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="mapcard">
     <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
+    <div id="reveal" class="reveal"></div>
     <svg id="map" viewBox="0 0 400 480"></svg><div id="gmap"></div>
     <div class="info" id="pinst" style="display:none"></div>
     <div class="info" id="hint"></div>
@@ -143,16 +153,17 @@ function loadGoogleMaps(){
 // 見た目確認: localhost でだけ ?mapstyle=off でスタイル無効(ラベル表示の衛星+地図)にして比較できる。本番では答えが見えてしまうので無効。
 async function createGoogleMap(el,opts){
   const maps=await loadGoogleMaps();
-  const off=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&new URLSearchParams(location.search).get("mapstyle")==="off";
+  const off=labelsAlways=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)&&new URLSearchParams(location.search).get("mapstyle")==="off";
   return new maps.Map(el,{
-    clickableIcons:false,gestureHandling:"greedy",
+    // 回答前は自分で拡大縮小・移動できない(広げると答えが分かるため)。gSetView が回答後に解除する
+    clickableIcons:false,gestureHandling:"none",zoomControl:false,disableDoubleClickZoom:true,keyboardShortcuts:false,
     // styles は衛星/ハイブリッド画像には効かないため、ラベル非表示時は通常地図(roadmap)を使う
     ...(off?{mapTypeId:"hybrid",mapTypeControl:true}:{mapTypeId:"roadmap",mapTypeControl:false,styles:window.ZMAP_MAP_STYLE.hideLabels}),
     ...opts
   });
 }
 // ---- Google Maps 実地図モード(キーがあり読み込めた場合のみ。失敗時は下のダミー表示にフォールバック) ----
-let gMode=false,gmap=null,gpano=null,gcircle=null,gpin=null,gtruth=null,gline=null;
+let labelsAlways=false,gMode=false,gmap=null,gpano=null,gcircle=null,gpin=null,gtruth=null,gline=null;
 const G_ZOOM=[16,14,12,10,7],G_SVZ=[2.6,2,1.4,0.8,0];
 async function initGoogle(){
   if(!MAPS_KEY)return;
@@ -177,12 +188,16 @@ function gDrawMap(){
   gpin=gtruth=gline=null;
   if(pin){const p={lat:pin.lat,lng:pin.lon};
     gpin=new google.maps.Circle({map:gmap,center:p,radius:Math.max(30,RADIUS_KM[stage]*60),strokeColor:"#fff",strokeWeight:2,fillColor:"#e11d48",fillOpacity:1,clickable:false});
-    if(answered){gtruth=new google.maps.Circle({map:gmap,center:c,radius:Math.max(30,RADIUS_KM[stage]*60),strokeColor:"#fff",strokeWeight:2,fillColor:"#16a34a",fillOpacity:1,clickable:false});
-      gline=new google.maps.Polyline({map:gmap,path:[p,c],strokeColor:"#e11d48",strokeWeight:2,clickable:false});}}
+    if(answered)gline=new google.maps.Polyline({map:gmap,path:[p,c],strokeColor:"#e11d48",strokeWeight:2,clickable:false});}
+  if(answered)gtruth=new google.maps.Marker({map:gmap,position:c,title:fullAnswer(q)});
 }
 function gSetView(){
   const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
-  if(answered){const b=new google.maps.LatLngBounds(c);if(pin)b.extend({lat:pin.lat,lng:pin.lon});else b.extend({lat:q.lat+.05,lng:q.lon+.05});gmap.fitBounds(b,60);}
+  // 回答後は答えを隠す必要がないので、地名を出して自由に動かせるようにする
+  gmap.setOptions(answered?{gestureHandling:"greedy",zoomControl:true,styles:[]}:{gestureHandling:"none",zoomControl:false,styles:labelsAlways?[]:window.ZMAP_MAP_STYLE.hideLabels});
+  if(answered&&!pin){gmap.setCenter(c);gmap.setZoom(13);}
+  else if(answered){const b=new google.maps.LatLngBounds(c);b.extend({lat:pin.lat,lng:pin.lon});gmap.fitBounds(b,60);
+    google.maps.event.addListenerOnce(gmap,"idle",()=>{if(gmap.getZoom()>15)gmap.setZoom(15);});}
   else{gmap.panTo(c);gmap.setZoom(G_ZOOM[stage]);}
   gDrawMap();
 }
@@ -351,7 +366,7 @@ function tick(){
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
 function widen(){if(answered||stage>=4)return;stage++;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();setVB(vbFor(stage));hint();}
-function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
+function hint(){const d=curDiff;$("hint").innerHTML=`<span>難易度 <b>${d}</b>(${DIFF[d].label}を当てる / 当たると ${DIFF[d].mult}点 × 早撃ちボーナス)</span><span>地図は地名を消してあります。道や海岸線の形から推理しよう(地図はヒントが広がると広がります)</span>`;$("dbadge").textContent=`難易度 ${d} ×${DIFF[d].mult}`;}
 function dist(a,b,c,d){const dx=(c-a)*111*Math.cos((b+d)/2*Math.PI/180),dy=(d-b)*111;return Math.hypot(dx,dy);}
 
 $("map").addEventListener("click",e=>{
@@ -417,17 +432,22 @@ function submitAnswer(){
   total=Math.round((total+pts)*10)/10;results.push({d,hit:ok,pts,stage});
   const ans=d==="VD"?q.addr:d==="Diff"?`${q.pref}${q.city} ${q.town}`:d==="Mid"?`${q.pref}${q.city}`:d==="Easy"?q.pref:"日本";
   const wrong=f.filter(k=>!right[k](v[k])).map(k=>FLABEL[k]);
+  const mine=f.map(k=>v[k]).join(" ");
   zmapNative.haptic(ok?"success":"error");
   if(ok){
     const cheer=stage===0?"最速で的中!天才!":pts>=10?"お見事!":"ナイス!";
-    showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${fmt(pts)}点</div><div class="sub">${cheer} ${DIFF[d].label}: ${ans}<br>${DIFF[d].mult}(難易度)× ${bonus}(早撃ちボーナス)</div>`,"win",true);
+    showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${fmt(pts)}点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${cheer} ${DIFF[d].label}: ${ans}<br>${DIFF[d].mult}(難易度)× ${bonus}(早撃ちボーナス)</div>`,"win",true);
   }else{
-    showResult(`<div class="big">😢 ハズレ</div><div class="pts">0点</div><div class="sub">違った項目: ${wrong.join("・")}<br>正解は ${ans}</div>`,"lose",false);
+    showResult(`<div class="big">😢 ハズレ</div><div class="pts">0点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">あなたの答え: ${esc(mine)}(違った項目: ${wrong.join("・")})</div>`,"lose",false);
   }
+  $("reveal").innerHTML=`<small>正解の場所</small><b>${fullAnswer(q)}</b><span>〒${q.zip}</span>`;$("reveal").className="reveal show";
+  document.body.classList.add("revealed");
   $("widen").disabled=true;$("next").style.display="";
   $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
-  render();setVB(vbFor(stage,true));
+  render();requestAnimationFrame(()=>setVB(vbFor(stage,true)));
 }
+const fullAnswer=q=>[q.pref,q.city,q.town,q.num].filter(Boolean).join(" ");
+const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 $("widen").onclick=widen;
 function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
 $("next").onclick=()=>{
@@ -441,7 +461,7 @@ $("next").onclick=()=>{
     zmapNative.score(total,DAILY);
     zmapNative.askReminder();
     $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
-  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;$('pinst').style.display='none';vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
+  cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;$('pinst').style.display='none';$("reveal").className="reveal";document.body.classList.remove("revealed");vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
   render();if(gMode)gSetView();startIntro(()=>{hint();schedule();});
 };
 
