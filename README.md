@@ -3,15 +3,15 @@
 ランダムな郵便番号の場所を、ストリートビューと地図のヒントが徐々に広がっていく中で当てる GeoGuessr 風ゲーム。
 対応国: 日本 / アメリカ / イギリス / インド。
 
-- ステータス: 🔍 設計中(MVP 未着手)
-- 設計の詳細: [docs/design.md](docs/design.md)
+- ステータス: 🟢 Web 版を公開中。iPhone アプリ(`ios/`)も実装済み(配信手順は後述)
+- 設計の詳細: [docs/design.md](docs/design.md)(初期の設計メモ。実装と一致しない部分がある)
 - 公開先: https://zmap.ktrips.net(ゲーム本体は [demo/index.html](demo/index.html)。API キーなしで開くと練習用の5問で動く)
 - 由来: [ktrips/Aapp](https://github.com/ktrips/Aapp) のアイデア置き場(`ideas/zipcode-geoguessr.md`)から卒業
 
 ## ゲームの流れ(「ひろがれ!郵便番号」モード)
 1. ランダムな郵便番号を1つ選ぶ。
 2. 最初のヒントは、その郵便番号の範囲だけを塗った地図と、狭い視野のストリートビュー。
-3. 時間経過か「広げる」ボタンで、郵便番号を**下の桁から1つずつ外し**、地図のハイライト範囲とストリートビューの視野を段階的に広げる。
+3. 20秒ごとの時間経過か「ヒントを広げる」ボタンで、郵便番号を**下の桁から1つずつ外し**、地図のハイライト範囲とストリートビューの視野を段階的に広げる。
 4. 好きなタイミングで**都道府県**(モードによっては市区町村・番地)を答える。国はダーツが刺さった時点で決まり、答えには含まない。当てたときに見えていた郵便番号の桁数で得点が決まる。
 
 | 見えている桁数 | 7桁 | 6桁 | 5桁 | 4桁 | 3桁 | 外れ |
@@ -19,6 +19,8 @@
 | 得点 | 10 | 8 | 6 | 4 | 2 | 0 |
 
 5問で最大50点。
+
+回答後は、正解の場所を同じ大きさの広域地図で見せ、都道府県の名産・名所([demo/meibutsu.js](demo/meibutsu.js))と市区町村の紹介(Wikipedia の要約。取れなければ出さない)を表示する。得点はこの端末の履歴に最新30件まで残る(localStorage。サーバーには送らない)。
 
 ### 答えが分かってしまう情報は出さない
 - 地図は地名・道路名・施設などのラベルを消したスタイルだけを使う(ラベルを出す `?mapstyle=off` は localhost でしか効かない)。
@@ -104,6 +106,8 @@ Firebase Hosting のカスタムドメインは、Firebase コンソールと DN
 アイコン: 元は [demo/favicon.svg](demo/favicon.svg)(鹿撃ち帽とパイプの虫眼鏡で地図を推理する探偵)。PNG は `rsvg-convert -w 1024 -h 1024 demo/favicon.svg | magick - -alpha remove -alpha off PNG24:ios/Sources/App/Assets.xcassets/AppIcon.appiconset/icon-1024.png` のように作る(App Store のアイコンは透過なし)。
 
 ローカルで開く: `brew install xcodegen && cd ios && DEVELOPMENT_TEAM=XXXXXXXXXX xcodegen && open Zmap.xcodeproj`
+
+ビルドはどちらのワークフローも GitHub Actions の `macos-26` ランナーで行い、Xcode 26 系を選ぶ(`ios-testflight.yml` の「Xcode 26 以降を選ぶ」ステップ)。より新しい SDK(iOS 27 など)でビルドするときは、ランナーにある Xcode のバージョン(`/Applications/Xcode_*.app`)と、そのステップの選択条件を合わせて変える。
 
 ### Apple 側の準備(初回のみ)
 1. [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list) で App ID `net.ktrips.zmap` を作り、**Game Center** を有効にする。
