@@ -48,7 +48,7 @@
 
 ### 手動デプロイ
 ```bash
-# 1. .firebaserc の YOUR_FIREBASE_PROJECT_ID を自分のプロジェクト ID に書き換える
+# 1. プロジェクト ID は .firebaserc に設定済み(zmaprj)
 # 2. 初回のみログイン
 npx firebase-tools@13 login
 # 3. ビルド + デプロイ
@@ -62,7 +62,9 @@ npm run deploy
 |---|---|---|
 | Secret | `FIREBASE_SERVICE_ACCOUNT` | Firebase のサービスアカウント鍵(JSON)。`firebase init hosting:github` で自動作成も可 |
 | Secret | `GOOGLE_MAPS_API_KEY` | Maps のキー |
-| Variable | `FIREBASE_PROJECT_ID` | Firebase のプロジェクト ID |
+| Variable | `FIREBASE_PROJECT_ID` | Firebase のプロジェクト ID(任意。未設定なら `zmaprj`) |
+
+デプロイ先は https://zmaprj.web.app(カスタムドメイン設定後は https://zmap.ktrips.net)。
 
 ### カスタムドメイン(zmap.ktrips.net)
 Firebase Hosting のカスタムドメインは、Firebase コンソールと DNS の操作が必要で、`firebase.json` やこのリポジトリのコードでは設定できない。次の手順で行う。
