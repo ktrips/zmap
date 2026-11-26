@@ -114,3 +114,8 @@ Firebase Hosting のカスタムドメインは、Firebase コンソールと DN
 | Secret | `ASC_ISSUER_ID` | Issuer ID |
 | Secret | `ASC_KEY_P8` | `.p8` ファイルの中身 |
 | Variable | `DEVELOPMENT_TEAM` | Apple Developer の Team ID |
+| Secret | `DIST_CERT_P12` | 配布用証明書(Apple Distribution)の p12 を base64 にしたもの |
+| Secret | `DIST_CERT_PASSWORD` | 上の p12 のパスワード |
+| Secret | `APPSTORE_PROFILE` | `net.ktrips.zmap` の App Store プロファイルを base64 にしたもの |
+
+下の3つは、API キーにクラウド署名の権限がなく `Cloud signing permission error` で書き出しが失敗するときに使う(あれば手動署名、なければ自動署名)。証明書とプロファイルは App Store Connect API で作成済みで、元のファイルは `~/.appstoreconnect/zmap-signing/` にある。プロファイルの期限は証明書と同じ1年。
