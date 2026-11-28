@@ -114,7 +114,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #ctrl{position:absolute;left:0;right:0;bottom:7%;z-index:11;display:flex;gap:10px;justify-content:center;align-items:center}
 #ctrl select{background:#fff;color:#111;font-size:16px;padding:10px 12px}
 #ctrl button{font-size:18px;padding:10px 24px}
-#title{position:absolute;left:0;right:0;top:calc(6% + env(safe-area-inset-top));text-align:center;color:#fff;font:700 26px system-ui;letter-spacing:.1em;z-index:11;text-shadow:0 2px 12px #000}
+#brand{position:absolute;left:16px;top:calc(12px + env(safe-area-inset-top));z-index:11;display:flex;align-items:center;gap:12px;color:#fff;text-shadow:0 2px 12px #000;pointer-events:none}
+#brand img{width:56px;height:56px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+#brand b{display:block;font:800 30px/1.05 system-ui;letter-spacing:.12em}
+#brand small{display:block;font:14px/1.3 system-ui;opacity:.9;margin-top:4px;letter-spacing:.04em}
+#title{position:absolute;left:0;right:0;top:calc(104px + env(safe-area-inset-top));text-align:center;color:#fff;font:700 24px system-ui;letter-spacing:.1em;z-index:11;text-shadow:0 2px 12px #000}
 #title small{display:block;font:13px system-ui;opacity:.75;letter-spacing:.05em;margin-top:4px}
 #pxlab{display:none;align-items:center;gap:6px;color:#fff;font-size:14px}
 #pxlab input{width:5.2em;font-size:18px;padding:8px;text-align:center;letter-spacing:.12em;color:#111;background:#fff;border-radius:8px;border:none}
@@ -211,7 +215,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <p class="note">遊び方: 最初の画面か右上のメニューでゲームを選びます。<b>都道府県当てゲーム</b>(日本)が標準です。<b>州当てゲーム</b>はアメリカの ZIP から場所を当てます。<b>エキスパート街当てゲーム</b>は郵便番号の上1桁か2桁を入れると、その地域(2桁ならさらに狭い範囲)を地図に表示し、市区町村か街の名前を答えます。<br>郵便番号は20秒ごとに下の桁が外れ、見えていた桁数で得点が決まります。7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点(州当ては5桁から1桁まで同じ点数)、外れは0点。5問で最大50点です。</p>
 </div>
 
-<div id="intro"><div id="title">Zapper<small>地図と郵便番号当てゲーム</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県当て</option><option value="state">州当て</option><option value="expert">エキスパート街当て</option></select><label id="pxlab">郵便番号<input id="ipx" inputmode="numeric" maxlength="2" placeholder="上1〜2桁" autocomplete="off" aria-label="郵便番号の上1桁または2桁"><span id="pxhint"></span></label><button id="throw" class="primary" type="button">🎯 投げる</button></div><button id="skip" type="button">スキップ</button></div>
+<div id="intro"><div id="brand"><img src="favicon.svg" alt="" width="56" height="56"><div><b>Zapper</b><small>地図と郵便番号当てゲーム</small></div></div><div id="title"></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県当て</option><option value="state">州当て</option><option value="expert">エキスパート街当て</option></select><label id="pxlab">郵便番号<input id="ipx" inputmode="numeric" maxlength="2" placeholder="上1〜2桁" autocomplete="off" aria-label="郵便番号の上1桁または2桁"><span id="pxhint"></span></label><button id="throw" class="primary" type="button">🎯 投げる</button></div><button id="skip" type="button">スキップ</button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
