@@ -40,6 +40,7 @@
   </g>
   <rect width="1024" height="1024" fill="#0a2a40" opacity=".06"/>
 
+  <g transform="translate(480 600) scale(1.12) translate(-480 -600)">
   <!-- 虫眼鏡の柄 -->
   <path d="M676 796L900 1020" stroke="url(#wood)" stroke-width="96" stroke-linecap="round"/>
   <path d="M664 784L730 850" stroke="url(#brass)" stroke-width="112" stroke-linecap="butt"/>
@@ -55,10 +56,12 @@
       <path d="M300 320C330 420 300 520 340 620" stroke="#fff" stroke-width="24"/>
       <path d="M380 700C450 690 560 720 760 680" stroke="#fff" stroke-width="24"/>
     </g>
+    <g transform="translate(480 620) scale(1.3) translate(-480 -620)">
     <path d="M480 712C446 660 418 628 418 592a62 62 0 1 1 124 0C542 628 514 660 480 712Z" fill="#e11d48"/>
     <path d="M480 712C468 694 456 678 446 662" stroke="#9f1239" stroke-width="6" fill="none" opacity=".4"/>
     <circle cx="480" cy="592" r="30" fill="#fff"/>
     <path d="M462 578h36M462 591h36M480 591v28" stroke="#e11d48" stroke-width="7" stroke-linecap="round"/>
+    </g>
     <circle cx="480" cy="600" r="226" fill="url(#glass)"/>
     <path d="M322 540A170 170 0 0 1 430 420" fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" opacity=".55"/>
   </g>
@@ -67,12 +70,16 @@
   <circle cx="480" cy="600" r="252" fill="none" stroke="#1f2a44" stroke-width="54"/>
   <circle cx="480" cy="600" r="229" fill="none" stroke="url(#brass)" stroke-width="10"/>
 
+  </g>
+  <g transform="translate(200 760) scale(1.3) translate(-200 -760)">
   <!-- パイプ(キャラバッシュ型) -->
   <path d="M236 700C200 706 178 724 168 752" fill="none" stroke="#2a1a10" stroke-width="22" stroke-linecap="round"/>
   <path d="M108 752h112c0 70-18 108-56 108s-56-38-56-108Z" fill="url(#wood)"/>
   <ellipse cx="164" cy="752" rx="56" ry="15" fill="#2a1a10"/>
   <path d="M150 720C120 680 176 650 146 606C124 574 150 548 138 520" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" opacity=".75"/>
 
+  </g>
+  <g transform="translate(480 380) scale(1.18) translate(-480 -380)">
   <!-- 鹿撃ち帽 -->
   <path d="M352 336Q250 328 168 392Q262 406 360 380Z" fill="url(#check)" stroke="#5b3a1e" stroke-width="8" stroke-linejoin="round"/>
   <path d="M608 336Q710 328 792 392Q698 406 600 380Z" fill="url(#check)" stroke="#5b3a1e" stroke-width="8" stroke-linejoin="round"/>
@@ -84,4 +91,5 @@
   <ellipse cx="446" cy="116" rx="36" ry="18" transform="rotate(-18 446 116)" fill="#a86b38" stroke="#5b3a1e" stroke-width="6"/>
   <ellipse cx="514" cy="116" rx="36" ry="18" transform="rotate(18 514 116)" fill="#a86b38" stroke="#5b3a1e" stroke-width="6"/>
   <circle cx="480" cy="122" r="14" fill="#7a4b22"/>
+  </g>
 </svg>
