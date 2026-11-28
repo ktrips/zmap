@@ -111,18 +111,25 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #intro{position:fixed;inset:0;z-index:10;background:#0a1220;display:block}
 #intro canvas{position:absolute;inset:0;width:100%;height:100%}
 #skip{position:absolute;right:16px;top:calc(16px + env(safe-area-inset-top));z-index:11;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.3)}
-#ctrl{position:absolute;left:0;right:0;bottom:7%;z-index:11;display:flex;gap:10px;justify-content:center;align-items:center}
+#brand{position:absolute;left:16px;top:calc(12px + env(safe-area-inset-top));z-index:12;display:flex;align-items:center;gap:12px;color:#fff;text-shadow:0 2px 12px #000}
+#brand img{width:56px;height:56px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+#brand .nm{display:flex;align-items:center;gap:10px}
+#brand b{display:block;font:800 30px/1.05 system-ui;letter-spacing:.12em;color:#3ecf9f}
+#brand small{display:block;font:14px/1.3 system-ui;opacity:.9;margin-top:4px;letter-spacing:.04em}
+#flags{display:flex;gap:6px}
+#flags button{font-size:17px;line-height:1;padding:3px 5px;border-radius:8px;background:rgba(255,255,255,.1);border:1.5px solid transparent;opacity:.65;cursor:pointer}
+#flags button.on{opacity:1;border-color:#3ecf9f;background:rgba(62,207,159,.18)}
+/* 案内 → 選択 → 説明を、ブランドの下に縦に並べる(地球儀はこの下に描く) */
+#top{position:absolute;left:0;right:0;top:calc(92px + env(safe-area-inset-top));z-index:11;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 16px;color:#fff;text-align:center;text-shadow:0 2px 12px #000}
+#title{font:600 15px/1.4 system-ui;letter-spacing:.04em;min-height:1.4em}
+#title small{display:none}
+#ctrl{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;text-shadow:none}
 #ctrl select{background:#fff;color:#111;font-size:16px;padding:10px 12px}
 #ctrl button{font-size:18px;padding:10px 24px}
-#brand{position:absolute;left:16px;top:calc(12px + env(safe-area-inset-top));z-index:11;display:flex;align-items:center;gap:12px;color:#fff;text-shadow:0 2px 12px #000;pointer-events:none}
-#brand img{width:56px;height:56px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
-#brand b{display:block;font:800 30px/1.05 system-ui;letter-spacing:.12em}
-#brand small{display:block;font:14px/1.3 system-ui;opacity:.9;margin-top:4px;letter-spacing:.04em}
-#title{position:absolute;left:0;right:0;top:calc(104px + env(safe-area-inset-top));text-align:center;color:#fff;font:700 24px system-ui;letter-spacing:.1em;z-index:11;text-shadow:0 2px 12px #000}
-#title small{display:block;font:13px system-ui;opacity:.75;letter-spacing:.05em;margin-top:4px}
-#pxlab{display:none;align-items:center;gap:6px;color:#fff;font-size:14px}
-#pxlab input{width:5.2em;font-size:18px;padding:8px;text-align:center;letter-spacing:.12em;color:#111;background:#fff;border-radius:8px;border:none}
-#pxhint{display:block;max-width:220px;font-size:11px;line-height:1.3;opacity:.85}
+#modedesc{font:13px/1.5 system-ui;opacity:.9;max-width:34em}
+#pxlab{display:none;align-items:center;gap:8px;color:#fff;font-size:14px;flex-wrap:wrap;justify-content:center}
+#pxlab input{width:5.2em;font-size:20px;padding:8px;text-align:center;letter-spacing:.2em;color:#111;background:#fff;border-radius:8px;border:none}
+#pxhint{display:block;flex-basis:100%;max-width:320px;margin:0 auto;font-size:12px;line-height:1.3;opacity:.9}
 @media(max-width:720px){
   /* ノッチ・ダイナミックアイランドに隠れないよう、上は安全領域ぶん空ける */
   .wrap{padding:calc(env(safe-area-inset-top) + 6px) calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
@@ -174,16 +181,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <div class="bar">
     <div class="gmenu">
       <button id="menubtn" class="badge" type="button" aria-expanded="false" aria-haspopup="true">都道府県 ▾</button>
-      <div id="gmenu" class="gmenu-pop" hidden>
-        <button type="button" data-go="daily">今日の問題</button>
-        <button type="button" data-go="pref">都道府県</button>
-        <button type="button" data-go="state">州</button>
-        <button type="button" data-go="expert">郵便番号</button>
-      </div>
+      <div id="gmenu" class="gmenu-pop" hidden></div>
     </div>
     <span id="dbadge" class="badge desk"></span>
     <span id="keybadge" class="badge desk"></span>
-    <button id="replay" title="オープニングをもう一度">▶ 最初から</button>
+    <button id="replay"></button>
     <span id="round" class="badge"></span>
     <span id="total" class="badge"></span>
   </div>
@@ -191,33 +193,33 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <div class="grid">
   <section class="card" id="playcard">
-    <h2><span id="svtitle">ストリートビュー(模擬)</span><span id="fov"></span></h2>
+    <h2><span id="svtitle"></span><span id="fov"></span></h2>
     <svg id="sv" viewBox="0 0 400 240" preserveAspectRatio="xMidYMid slice"></svg><div id="gsv"></div>
-    <button id="widen" type="button">← ヒントを広げる</button>
+    <button id="widen" type="button"></button>
     <div class="zip" id="zip"></div>
     <div class="steps" id="steps"></div>
-    <div id="bonus" class="bonus"><div id="potential" class="potential"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt">ダーツを投げるとカウントダウン開始</div></div>
+    <div id="bonus" class="bonus"><div id="potential" class="potential"></div><div class="cd"><div id="cdbar"></div></div><div id="cdtxt" class="cdtxt"></div></div>
     <div id="ans" class="ans"></div>
     <div id="result" class="result"></div>
     <div class="bar" style="justify-content:center;padding-bottom:12px">
-      <button id="next" class="primary" style="display:none">次のラウンドへ</button>
+      <button id="next" class="primary" style="display:none"></button>
     </div>
     <div class="info" id="pinst" style="display:none"></div>
     <div class="info" id="hint"></div>
   </section>
 
   <section class="card" id="mapcard">
-    <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
+    <h2><span id="maptitle"></span><span id="area"></span></h2>
     <div id="reveal" class="reveal"></div>
     <svg id="map" viewBox="0 0 400 480"></svg><div id="gmap"></div>
   </section>
 </div>
 
 <div class="msg" id="msg"></div>
-<p class="note">遊び方: 最初の画面か右上のメニューでゲームを選びます。<b>都道府県当てゲーム</b>(日本)が標準です。<b>州当てゲーム</b>はアメリカの ZIP から場所を当てます。<b>エキスパート街当てゲーム</b>は郵便番号の上1桁か2桁を入れると、その地域(2桁ならさらに狭い範囲)を地図に表示し、市区町村か街の名前を答えます。<br>郵便番号は20秒ごとに下の桁が外れ、見えていた桁数で得点が決まります。7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点(州当ては5桁から1桁まで同じ点数)、外れは0点。5問で最大50点です。</p>
+<p class="note" id="note"></p>
 </div>
 
-<div id="intro"><div id="brand"><img src="favicon.svg" alt="" width="56" height="56"><div><b>Zapper</b><small>地図と郵便番号当てゲーム</small></div></div><div id="title"></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県当て</option><option value="state">州当て</option><option value="expert">エキスパート街当て</option></select><label id="pxlab">郵便番号<input id="ipx" inputmode="numeric" maxlength="2" placeholder="上1〜2桁" autocomplete="off" aria-label="郵便番号の上1桁または2桁"><span id="pxhint"></span></label><button id="throw" class="primary" type="button">🎯 投げる</button></div><button id="skip" type="button">スキップ</button></div>
+<div id="intro"><canvas id="ic"></canvas><div id="brand"><img src="favicon.svg" alt="" width="56" height="56"><div><div class="nm"><b>Zapper</b><span id="flags"><button type="button" data-lang="ja" aria-label="日本語">🇯🇵</button><button type="button" data-lang="en" aria-label="English">🇺🇸</button></span></div><small id="tagline"></small></div></div><div id="top"><div id="title"></div><div id="ctrl"><select id="imode"></select><label id="pxlab"><span id="pxtxt"></span><input id="ipx" inputmode="numeric" maxlength="3" autocomplete="off"><span id="pxhint"></span></label><button id="throw" class="primary" type="button"></button></div><div id="modedesc"></div></div><button id="skip" type="button"></button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
@@ -231,7 +233,7 @@ let mapsReady=null;
 function loadGoogleMaps(){
   if(!mapsReady)mapsReady=new Promise((ok,ng)=>{
     window.__zmapMapsReady=()=>ok(window.google.maps);
-    const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding&language=ja&region=JP&callback=__zmapMapsReady`;
+    const sc=document.createElement("script");sc.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(MAPS_KEY)}&loading=async&libraries=places,geocoding&language=${LANG==="en"?"en":"ja"}&region=${LANG==="en"?"US":"JP"}&callback=__zmapMapsReady`;
     sc.onerror=()=>{mapsReady=null;ng(new Error("Google Maps の読み込みに失敗"));};document.head.appendChild(sc);});
   return mapsReady;
 }
@@ -256,15 +258,15 @@ async function initGoogle(){
   if(!MAPS_KEY)return;
   try{
     const gm=await loadGoogleMaps();
-    const home=mode==="state"?{lat:39.8,lng:-98.5}: {lat:36.2,lng:138.2};
-    gmap=await createGoogleMap($("gmap"),{center:home,zoom:mode==="state"?4:5,streetViewControl:false,fullscreenControl:false,rotateControl:false,keyboardShortcuts:false});
+    const home=isUS()?{lat:39.8,lng:-98.5}: {lat:36.2,lng:138.2};
+    gmap=await createGoogleMap($("gmap"),{center:home,zoom:isUS()?4:5,streetViewControl:false,fullscreenControl:false,rotateControl:false,keyboardShortcuts:false});
     gmap.addListener("click",e=>{if(answered)return;pin={lon:e.latLng.lng(),lat:e.latLng.lat()};zmapNative.haptic("light");gDrawMap();pinPlaced();});
     // 住所・道路名・撮影日など、場所の名前につながる表示はすべて消す
     gpano=new gm.StreetViewPanorama($("gsv"),{visible:true,addressControl:false,linksControl:false,fullscreenControl:false,motionTracking:false,motionTrackingControl:false,showRoadLabels:false,imageDateControl:false,zoomControl:true,panControl:true,enableCloseButton:false});
     // addressControl:false でも、非表示の住所欄に「町名, 県名」が残るので消す
     new MutationObserver(()=>$("gsv").querySelectorAll('a[href$="#"]').forEach(a=>{if(a.textContent.trim())a.textContent="";})).observe($("gsv"),{subtree:true,childList:true,characterData:true});
     $("gsv").addEventListener("pointerdown",()=>{svTouched=true;cancelAnimationFrame(svAnim);});
-    gMode=true;document.body.classList.add("gm");$("svtitle").textContent="ストリートビュー";
+    gMode=true;document.body.classList.add("gm");$("svtitle").textContent=t("svtitle");
     gm.event.trigger(gmap,"resize");
     render();
   }catch(e){console.warn("Google Maps を使えないためデモ表示にします",e);gMode=false;document.body.classList.remove("gm");}
@@ -273,9 +275,12 @@ function clearRegions(){gRegions.forEach(x=>x.setMap(null));gRegions=[];}
 function gDrawMap(){
   const q=ROUNDS[r];if(!q)return;const c={lat:q.lat,lng:q.lon};
   if(gcircle)gcircle.setMap(null);gcircle=null;clearRegions();
-  const expert=mode==="expert"&&!answered;
-  if(expert){
-    for(const b of regionBoxes(prefix,true))
+  const zipView=isZipMode()&&!answered;
+  if(zipView){
+    if(regionShapes.length){
+      for(const s of regionShapes)
+        gRegions.push(new google.maps.Polygon({map:gmap,paths:s.rings.map(rg=>rg.map(([x,y])=>({lat:y,lng:x}))),strokeColor:"#0b7a5c",strokeOpacity:s.partial?.65:1,strokeWeight:s.partial?2:3,fillColor:"#2fbf8f",fillOpacity:s.partial?.14:.3,clickable:false}));
+    }else for(const b of regionBoxes(prefix,true))
       gRegions.push(new google.maps.Rectangle({map:gmap,bounds:{north:b.lat[1],south:b.lat[0],east:b.lon[1],west:b.lon[0]},strokeColor:"#0b7a5c",strokeWeight:2,fillColor:"#0b7a5c",fillOpacity:.2,clickable:false}));
   }else gcircle=new google.maps.Circle({map:gmap,center:c,radius:RADIUS_KM[stage]*1000,strokeColor:"#0b7a5c",strokeWeight:2,fillColor:"#0b7a5c",fillOpacity:.22,clickable:false});
   if(gpin)gpin.setMap(null);if(gtruth)gtruth.setMap(null);if(gline)gline.setMap(null);
@@ -290,9 +295,9 @@ function gSetView(){
   const q=ROUNDS[r],c={lat:q.lat,lng:q.lon};
   // 回答後は答えを隠す必要がないので、地名を出して自由に動かせるようにする
   gmap.setOptions(answered?{gestureHandling:"greedy",zoomControl:true,styles:[]}:{gestureHandling:"none",zoomControl:false,styles:labelsAlways?[]:window.ZMAP_MAP_STYLE.hideLabels});
-  if(mode==="expert"&&!answered){
-    const boxes=regionBoxes(prefix,true);
-    if(boxes.length){const b=new google.maps.LatLngBounds();boxes.forEach(bx=>{b.extend({lat:bx.lat[0],lng:bx.lon[0]});b.extend({lat:bx.lat[1],lng:bx.lon[1]});});gmap.fitBounds(b,28);}
+  if(isZipMode()&&!answered){
+    const bb=regionBBox();
+    if(bb){const b=new google.maps.LatLngBounds();b.extend({lat:bb.lat0,lng:bb.lon0});b.extend({lat:bb.lat1,lng:bb.lon1});gmap.fitBounds(b,28);}
     gDrawMap();return;
   }
   // 回答後は県や周りの都市名が見える広さにして、どのあたりかを分かるようにする
@@ -336,7 +341,7 @@ const DUMMY_ROUNDS=ROUNDS.slice();
 const ZIP_POOL=["060-0042","040-0063","030-0801","020-0021","980-0021","010-0951","990-0042","960-8031","310-0011","320-0026","371-0026","330-0062","260-0013","100-0005","160-0023","150-0002","220-0011","950-0087","930-0005","920-0961","380-0834","400-0031","420-0853","460-0008","500-8833","510-0075","520-0043","600-8216","530-0001","650-0001","640-8227","680-0011","690-0887","700-0901","730-0011","750-0025","760-0017","790-0003","800-0031","810-0001","840-0801","850-0862","860-0001","870-0042","880-0001","890-0053","900-0015"];
 const JP_BOUNDS={lat:[24,46],lon:[122,146]};
 const US_BOUNDS={lat:[24,49.5],lon:[-125,-66]};
-const STATE_CODE={AL:"アラバマ",AK:"アラスカ",AZ:"アリゾナ",AR:"アーカンソー",CA:"カリフォルニア",CO:"コロラド",CT:"コネチカット",DE:"デラウェア",FL:"フロリダ",GA:"ジョージア",HI:"ハワイ",ID:"アイダホ",IL:"イリノイ",IN:"インディアナ",IA:"アイオワ",KS:"カンザス",KY:"ケンタッキー",LA:"ルイジアナ",ME:"メイン",MD:"メリーランド",MA:"マサチューセッツ",MI:"ミシガン",MN:"ミネソタ",MS:"ミシシッピ",MO:"ミズーリ",MT:"モンタナ",NE:"ネブラスカ",NV:"ネバダ",NH:"ニューハンプシャー",NJ:"ニュージャージー",NM:"ニューメキシコ",NY:"ニューヨーク",NC:"ノースカロライナ",ND:"ノースダコタ",OH:"オハイオ",OK:"オクラホマ",OR:"オレゴン",PA:"ペンシルベニア",RI:"ロードアイランド",SC:"サウスカロライナ",SD:"サウスダコタ",TN:"テネシー",TX:"テキサス",UT:"ユタ",VT:"バーモント",VA:"バージニア",WA:"ワシントン",WV:"ウェストバージニア",WI:"ウィスコンシン",WY:"ワイオミング"};
+const STATE_CODE={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
 const US_POOL=["10001","02108","19103","21201","30303","33131","32801","28202","37219","70112","77002","75201","78701","80202","84101","85004","89101","94102","95814","97204","98101","55401","48226","43215","15222","27601","29201","35203","73102","64105","50309","68508","67202","58102","57104"];
 const US_SEEDS=[[40.75,-73.99],[34.05,-118.24],[41.88,-87.63],[29.76,-95.37],[33.45,-112.07],[39.74,-104.99],[47.61,-122.33],[32.78,-96.80],[37.77,-122.42],[25.77,-80.19],[33.75,-84.39],[42.36,-71.06],[39.95,-75.16],[36.17,-115.14],[44.98,-93.27],[30.27,-97.74],[35.23,-80.84],[43.04,-87.91],[39.10,-94.58],[35.47,-97.52],[36.16,-86.78],[32.72,-117.16],[45.52,-122.68],[41.50,-81.69],[42.33,-83.05],[39.29,-76.61],[35.15,-90.05],[30.33,-81.66],[27.95,-82.46],[43.62,-116.20],[40.76,-111.89],[35.08,-106.65],[32.22,-110.97],[36.85,-76.29],[39.96,-82.99],[41.26,-95.94],[43.05,-76.15],[42.65,-73.76],[41.76,-72.68],[39.74,-75.55]];
 const US_LAND=[[[-124.7,48.4],[-123.1,48.0],[-122.8,47.3],[-124.4,46.3],[-124.0,43.3],[-124.4,40.5],[-123.0,38.8],[-122.4,37.1],[-121.9,36.3],[-120.6,34.5],[-117.2,32.5],[-114.7,32.7],[-111.1,31.3],[-108.2,31.8],[-106.5,31.8],[-103.0,29.0],[-101.4,29.8],[-99.2,26.4],[-97.1,25.9],[-97.4,27.8],[-93.8,29.6],[-89.4,29.2],[-89.2,30.3],[-87.5,30.3],[-84.9,29.6],[-82.6,27.8],[-80.0,25.2],[-80.5,26.8],[-81.4,30.7],[-81.3,31.4],[-79.5,32.7],[-75.6,35.2],[-75.5,36.9],[-76.0,37.9],[-75.1,37.9],[-74.3,39.3],[-73.9,40.6],[-71.9,41.3],[-70.0,41.5],[-70.1,43.1],[-67.0,44.8],[-67.8,47.1],[-69.2,47.3],[-71.0,45.1],[-73.3,45.0],[-74.9,45.0],[-76.5,44.0],[-79.0,43.3],[-82.4,43.0],[-83.1,42.0],[-82.4,41.7],[-83.5,41.7],[-84.8,41.7],[-84.8,45.8],[-87.0,45.2],[-87.8,42.5],[-87.5,41.7],[-88.1,41.7],[-89.1,42.5],[-90.6,42.5],[-91.6,43.6],[-92.1,46.7],[-89.5,48.0],[-94.6,49.0],[-123.0,49.0],[-124.7,48.4]]];
@@ -366,7 +371,9 @@ const WARD_BOX={
 };
 // 2桁の郵便番号が指す23区(同じ2桁でも区をまたぐので複数)
 const P2WARD={"10":["千代田区","中央区","港区"],"11":["台東区","文京区","北区","荒川区"],"12":["足立区","葛飾区","江戸川区"],"13":["墨田区","江東区","江戸川区"],"14":["品川区","大田区"],"15":["渋谷区","目黒区","世田谷区"],"16":["新宿区","中野区","杉並区"],"17":["豊島区","板橋区","練馬区"]};
-function regionBoxes(px,tight){
+// 境界データを読み込めないとき(オフライン等)の、県・23区の概略の矩形
+function fallbackBoxes(px,tight){
+  if(isUS())return [];
   const d=String(px||"").replace(/\D/g,"").slice(0,2);
   if(!/^\d{1,2}$/.test(d))return [];
   if(d.length===2&&P2WARD[d])return P2WARD[d].map(n=>WARD_BOX[n]);
@@ -376,12 +383,70 @@ function regionBoxes(px,tight){
   if(tight&&d.length>=2)boxes=boxes.map(b=>shrinkBox(b,0.58));
   return boxes;
 }
-function prefixHint(px){
-  if(px.length===2&&P2WARD[px])return P2WARD[px].join("・")+"(東京23区)";
-  const names=[...new Set(Object.entries(P2PREF).filter(([k])=>k.startsWith(px)).map(([,v])=>v))];
-  if(!names.length)return "その番号の地域はありません";
-  const list=names.length>5?names.slice(0,5).join("・")+"など":names.join("・");
-  return px.length>=2?list+"のさらに狭い範囲":list;
+// ---- 郵便番号の範囲を地図に出すためのデータ ----
+// 日本: demo/zip3.json(上3桁 → 市区町村コード)と demo/muni/<県>.json(市区町村の境界)。scripts/gen-zip3.mjs で作る
+// 米国: demo/us-zip3.json(ZIP3 → 範囲の凸包)。scripts/gen-us-zip3.mjs で作る
+// 上1〜2桁のときは、その桁で始まるすべての3桁の範囲をまとめて出す
+let regionShapes=[],regionKey="",regionInfo={names:[]},regionReq=0;
+let ZIP3=null,USZ3=null;const muniFiles={};
+const loadJson=url=>fetch(url).then(r=>{if(!r.ok)throw new Error(url+" "+r.status);return r.json();});
+const loadZip3=()=>ZIP3?Promise.resolve(ZIP3):loadJson("zip3.json").then(d=>(ZIP3=d));
+const loadUsZ3=()=>USZ3?Promise.resolve(USZ3):loadJson("us-zip3.json").then(d=>(USZ3=d));
+const loadMuni=pf=>muniFiles[pf]||(muniFiles[pf]=loadJson(`muni/${pf}.json`));
+async function loadRegion(px){
+  px=String(px||"").replace(/\D/g,"").slice(0,3);
+  if(regionKey===px&&px)return;
+  const my=++regionReq,shapes=[],names=[];
+  if(px){
+    if(isUS()){
+      const z=await loadUsZ3();
+      for(const k of Object.keys(z).filter(k=>k.startsWith(px))){shapes.push({rings:[z[k].h],partial:false});names.push(`${z[k].n}, ${z[k].s.join("/")}`);}
+    }else{
+      const z=await loadZip3(),member={},ids=new Set();
+      for(const [k,list] of Object.entries(z.z))for(const c of list){const id=c.replace("*","");(member[id]=member[id]||[]).push(k);if(k.startsWith(px))ids.add(id);}
+      const files=await Promise.all([...new Set([...ids].map(id=>id.slice(0,2)))].map(loadMuni));
+      const geo={};files.forEach(f=>Object.assign(geo,f));
+      for(const id of ids){
+        // その市区町村が複数の3桁にまたがり、入力した桁に含まれない3桁もあるときは「一部」
+        const partial=!member[id].every(k=>k.startsWith(px));
+        for(const polys of geo[id]||[])shapes.push({rings:polys,partial});
+        names.push(z.n[id]+(partial?t("partial"):""));
+      }
+    }
+  }
+  if(my!==regionReq)return;
+  regionShapes=shapes;regionKey=px;regionInfo={names};
+}
+// 離島などの飛び地は除いて、主な範囲だけを画面に収める
+function coreShapes(){
+  if(regionShapes.length<4)return regionShapes;
+  const info=regionShapes.map(s=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const [x,y] of s.rings[0]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}return {s,cx:(x0+x1)/2,cy:(y0+y1)/2};});
+  const med=a=>a.slice().sort((p,q)=>p-q)[Math.floor(a.length/2)];
+  const mx=med(info.map(i=>i.cx)),my=med(info.map(i=>i.cy));
+  const ds=info.map(i=>Math.hypot((i.cx-mx)*Math.cos(my*Math.PI/180),i.cy-my));
+  const lim=Math.max(0.6,2.5*med(ds));
+  const core=info.filter((i,k)=>ds[k]<=lim).map(i=>i.s);
+  return core.length?core:regionShapes;
+}
+function regionBBox(){
+  let lon0=1e9,lon1=-1e9,lat0=1e9,lat1=-1e9,any=false;
+  const add=(x,y)=>{any=true;lon0=Math.min(lon0,x);lon1=Math.max(lon1,x);lat0=Math.min(lat0,y);lat1=Math.max(lat1,y);};
+  if(regionShapes.length)for(const s of coreShapes())for(const [x,y] of s.rings[0])add(x,y);
+  else for(const b of fallbackBoxes(prefix,true)){add(b.lon[0],b.lat[0]);add(b.lon[1],b.lat[1]);}
+  return any?{lon0,lon1,lat0,lat1}:null;
+}
+// 出題地点を探す範囲(読み込み済みの範囲の外接矩形)
+function regionBoxes(px,tight){
+  const d=String(px||"").replace(/\D/g,"").slice(0,3);
+  if(!/^\d{1,3}$/.test(d))return [];
+  if(regionKey===d&&regionShapes.length)return coreShapes().map(s=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;for(const [x,y] of s.rings[0]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}return {lon:[x0,x1],lat:[y0,y1]};});
+  return fallbackBoxes(d,tight);
+}
+async function regionHint(px){
+  try{await loadRegion(px);}catch(e){return "";}
+  const n=regionInfo.names;
+  if(!n.length)return t("noRegion");
+  return n.length>6?n.slice(0,6).join(" / ")+t("etc"):n.join(" / ");
 }
 // ---- デイリー問題(?daily=1): 端末の日付から決まる順番で選ぶので、同じ日は全員同じ5問になる ----
 const DAILY=new URLSearchParams(location.search).get("daily")==="1";
@@ -454,16 +519,16 @@ const OFFLINE=[
   asPlace("900-0015",127.680,26.214,"沖縄県","那覇市","久茂地","")
 ];
 const US_PLACES=[
-  asPlace("10001",-73.997,40.750,"ニューヨーク","ニューヨーク","チェルシー","", "US"),
-  asPlace("90012",-118.240,34.062,"カリフォルニア","ロサンゼルス","チャイナタウン","", "US"),
-  asPlace("60601",-87.623,41.886,"イリノイ","シカゴ","ループ","", "US"),
-  asPlace("98101",-122.334,47.610,"ワシントン","シアトル","ダウンタウン","", "US"),
-  asPlace("33131",-80.190,25.766,"フロリダ","マイアミ","ブリックル","", "US"),
-  asPlace("02108",-71.064,42.358,"マサチューセッツ","ボストン","ビーコンヒル","", "US"),
-  asPlace("78701",-97.743,30.267,"テキサス","オースティン","ダウンタウン","", "US"),
-  asPlace("80202",-104.995,39.753,"コロラド","デンバー","ロド","", "US"),
-  asPlace("30303",-84.388,33.755,"ジョージア","アトランタ","ダウンタウン","", "US"),
-  asPlace("85004",-112.074,33.451,"アリゾナ","フェニックス","ダウンタウン","", "US")
+  asPlace("10001",-73.997,40.750,"New York","New York","Chelsea","", "US"),
+  asPlace("90012",-118.240,34.062,"California","Los Angeles","Chinatown","", "US"),
+  asPlace("60601",-87.623,41.886,"Illinois","Chicago","The Loop","", "US"),
+  asPlace("98101",-122.334,47.610,"Washington","Seattle","Downtown","", "US"),
+  asPlace("33131",-80.190,25.766,"Florida","Miami","Brickell","", "US"),
+  asPlace("02108",-71.064,42.358,"Massachusetts","Boston","Beacon Hill","", "US"),
+  asPlace("78701",-97.743,30.267,"Texas","Austin","Downtown","", "US"),
+  asPlace("80202",-104.995,39.753,"Colorado","Denver","LoDo","", "US"),
+  asPlace("30303",-84.388,33.755,"Georgia","Atlanta","Downtown","", "US"),
+  asPlace("85004",-112.074,33.451,"Arizona","Phoenix","Downtown","", "US")
 ];
 function parseUS(comps){
   const c0=t=>comps.find(c=>c.types.includes(t)),g=t=>{const c=c0(t);return c?c.long_name:"";};
@@ -519,7 +584,7 @@ async function loadRandomRounds(count=5,country="JP"){
     const rs=await Promise.all(cands.map(c=>roundAt(maps,geocoder,svs,c,country).catch(()=>null)));
     for(const x of rs)if(x&&got.length<count&&!got.some(g=>g.zip===x.zip||g.city===x.city))got.push(x);
   }
-  if(got.length<count)throw new Error("ストリートビューのある出題地点を集められませんでした");
+  if(got.length<count)throw new Error(t("noSVRounds"));
   return got;
 }
 async function loadRoundsFromGeocoding(count=5,country="JP"){
@@ -531,57 +596,154 @@ async function loadRoundsFromGeocoding(count=5,country="JP"){
     const rs=await Promise.all(batch.map(z=>geocodeZip(geocoder,z,country).catch(()=>null)));
     rs.forEach(x=>{if(x&&!got.some(g=>g.zip===x.zip))got.push(x);});
   }
-  if(!got.length)throw new Error("Geocoding で必要な出題地点を取得できませんでした");
+  if(!got.length)throw new Error(t("noGeocode"));
   return got.slice(0,count);
 }
 async function loadExpertRounds(count=5){
-  const boxes=regionBoxes(prefix,false);
-  if(!boxes.length)throw new Error("郵便番号の上1桁か2桁を入れてください");
+  const boxes=regionBoxes(prefix,false),country=isUS()?"US":"JP";
+  if(!boxes.length)throw new Error(t("needPrefix"));
   const maps=await loadGoogleMaps(),geocoder=new maps.Geocoder(),svs=new maps.StreetViewService(),got=[];
   for(let batch=0;batch<8&&got.length<count;batch++){
     const cands=[...Array(6)].map(()=>{const b=boxes[Math.floor(Math.random()*boxes.length)];return {lat:b.lat[0]+Math.random()*(b.lat[1]-b.lat[0]),lon:b.lon[0]+Math.random()*(b.lon[1]-b.lon[0]),heading:Math.floor(Math.random()*360)};});
-    const rs=await Promise.all(cands.map(c=>roundAt(maps,geocoder,svs,c,"JP").catch(()=>null)));
+    const rs=await Promise.all(cands.map(c=>roundAt(maps,geocoder,svs,c,country).catch(()=>null)));
     for(const x of rs){
       if(!x||!String(x.zip).replace(/\D/g,"").startsWith(prefix))continue;
       if(got.length<count&&!got.some(g=>g.zip===x.zip||g.city===x.city))got.push(x);
     }
   }
   if(got.length)return got;
-  const pool=shuffled(ZIP_POOL.filter(z=>z.replace(/\D/g,"").startsWith(prefix)),Math.random);
+  const pool=shuffled((country==="US"?US_POOL:ZIP_POOL).filter(z=>z.replace(/\D/g,"").startsWith(prefix)),Math.random);
   for(const z of pool){
     if(got.length>=count)break;
-    const x=await geocodeZip(geocoder,z,"JP").catch(()=>null);
+    const x=await geocodeZip(geocoder,z,country).catch(()=>null);
     if(x&&!got.some(g=>g.zip===x.zip))got.push(x);
   }
-  if(!got.length)throw new Error("この番号の地点を見つけられませんでした");
+  if(!got.length)throw new Error(t("noPlace"));
   return got;
 }
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const POINTS=[10,8,6,4,2];   // 郵便番号が 7/6/5/4/3 桁見えている段階で当てたときの得点
+// ---- 言語(国旗で切り替え)。日本: 都道府県当て / 郵便番号街当て、アメリカ(英語): States / Zipcodes ----
+const LANG=(()=>{
+  if(DAILY)return "ja";
+  const s=new URLSearchParams(location.search).get("lang")||localStorage.getItem("zmap:lang")||"";
+  return s==="en"?"en":"ja";
+})();
+const LANG_MODES={ja:["pref","expert"],en:["state","uszip"]};
 const MODES={
   pref:{label:"都道府県当て",short:"都道府県",what:"都道府県"},
-  state:{label:"州当て",short:"州",what:"州"},
-  expert:{label:"エキスパート街当て",short:"郵便番号",what:"市区町村または街"},
+  expert:{label:"郵便番号街当て",short:"郵便番号",what:"市区町村または街"},
+  state:{label:"States",short:"States",what:"state"},
+  uszip:{label:"Zipcodes",short:"Zipcodes",what:"city or town"},
   city:{label:"市区町村",short:"市区町村",what:"市区町村"},
   vd:{label:"Very difficult",short:"VD",what:"市区町村・町名・丁目番地"}
 };
+const isUS=()=>LANG==="en";                       // 国は言語で決まる(日本語=日本、英語=アメリカ)
+const isZipMode=()=>mode==="expert"||mode==="uszip"; // 郵便番号を入れて街を当てるモード
+const I18N={
+ja:{
+  tagline:"地図と郵便番号当てゲーム",pickMode:"モードを選んで、地球儀にダーツを投げよう",nextDart:"地球儀にダーツを投げよう",
+  throw:"🎯 投げる",skip:"スキップ",zipTxt:"郵便番号",ipxPh:"1〜3桁",ipxAria:"郵便番号の上1桁から3桁",
+  desc_pref:"日本の場所を見て、都道府県を当てる",desc_expert:"郵便番号を指定して、その中で街を当てる",
+  m_daily:"今日の問題",m_pref:"都道府県",m_expert:"郵便番号",
+  replay:"▶ 最初から",replayTip:"オープニングをもう一度",
+  round:(n,tot,narrow)=>narrow?`${n}/${tot}`:`ラウンド ${n}/${tot}`,total:n=>`🏆 ${n}点`,pts:n=>`${n}点`,digit:n=>`${n}桁`,
+  nowScore:p=>`いま当てると <b>${p}点</b>`,lastHint:"最終ヒント(これ以上は広がりません)",
+  widen:"← ヒントを広げる",cd:(s,p)=>`次のヒントまで <b>${s}</b> 秒 — 広がると ${p}点 に下がります`,cdIdle:"ダーツを投げるとカウントダウン開始",
+  svMock:"ストリートビュー(模擬)",svtitle:"ストリートビュー",mapTitle:"地図(タップで目印のピン)",
+  fov:d=>`視野 ${d}°`,fovAbout:d=>`視野 約${d}°`,noSV:"この地点はストリートビューがありません",
+  radius:km=>`半径 約${km}km`,zipArea:"郵便番号の範囲",
+  capEnter:"上1〜3桁を入力",capShow:"範囲を地図に表示中",capAnswered:(unit,zip)=>`正解の${unit} ${zip}`,unitZip:"郵便番号",
+  hintScore:"郵便番号 7桁で10点 → 3桁で2点",hintLine:(what,score)=>`<span><b>${what}</b>を当てよう(${score})</span>`,
+  tipPref:"地図は地名を消してあります。道や海岸線の形から推理しよう。桁が外れるたびに地図とストリートビューの視野が広がり、5桁からはストリートビューを歩いて周りを見られます",
+  tipZip:"上1〜3桁を入れると、その郵便番号の範囲を市区町村の境界で地図に緑で表示します(薄い色は、その市区町村の一部だけが範囲に含まれるところ)。範囲の中の市区町村か街の名前を答えてください。",
+  pinNote:"📍 目印を立てました。答えは下の欄に入力してください",
+  pickPlease:"選択してください",lblPref:"都道府県",lblPx:"郵便番号の上1〜3桁",pxEx:"例: 154",lblPlace:"市区町村または街",placePh:"例: 世田谷区 または 三軒茶屋",submit:"回答する",
+  fillAll:"⚠ すべての欄を入力してください。",win:"🎉 当たり!! 🎉",cheer:["一番狭いヒントで的中!","お見事!","ナイス!"],
+  winSub:(cheer,unit,seen)=>`${cheer} ${unit} ${seen}桁の段階で当てました`,lose:"😢 ハズレ",loseSub:(mine,wrong)=>`あなたの答え: ${mine}(違った項目: ${wrong})`,
+  revealTitle:"正解の場所",zipMark:"〒",nextEnd:"結果を見る",nextDartBtn:"次のダーツへ",
+  gameOver:"🏁 ゲーム終了",share:"結果を共有",rank:"ランキング",again:"もう一度",
+  rating:t=>t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…",
+  finalSub:(rate,label)=>`${rate}(最大50点・${label})`,
+  histAt:when=>`${when} に達成`,histBest:" 🎊 自己ベスト!",histCap:b=>`得点の履歴(最高 ${b}点)`,histTh:["日時","モード","","得点"],
+  shareText:(short,daily,total,marks,url)=>`Zapper ${short}${daily} ${total}点 ${marks}\n${url}`,dailyWord:d=>` デイリー ${d}`,
+  meibutsu:p=>`${p}の名産`,spots:"名所",
+  noRegion:"その番号の地域はありません",etc:" など",partial:"(一部)",needPrefix:"郵便番号の上1〜3桁を入れてください",noPlace:"この番号の地点を見つけられませんでした",
+  noSVRounds:"ストリートビューのある出題地点を集められませんでした",noGeocode:"Geocoding で必要な出題地点を取得できませんでした",
+  noPractice:"この番号の練習問題はありません。別の桁を入れてください",finding:"出題地点を探しています…",noRounds:"出題を用意できませんでした",noQuestion:"出題がありません",
+  practice5:"練習用の5問(地図は簡易表示)",practiceZip:"練習用の問題(地図は簡易表示)",practiceZip2:"この番号は練習用の問題です",practiceFail:"地図を読み込めないため練習用の問題で遊んでいます",enterPrefix:"上1〜3桁を入れて開始",
+  note:`遊び方: 最初の画面か右上のメニューでゲームを選びます。<b>都道府県当て</b>(日本)が標準です。<b>郵便番号街当て</b>は郵便番号の上1〜3桁を入れると、その範囲を市区町村の境界で地図に緑で表示し、範囲の中の市区町村か街の名前を答えます。最初の画面の国旗でアメリカ版(States / Zipcodes)に切り替えられます。<br>郵便番号は20秒ごとに下の桁が外れ、見えていた桁数で得点が決まります。7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点、外れは0点。5問で最大50点です。`
+},
+en:{
+  tagline:"A map & ZIP code guessing game",pickMode:"Pick a game, then throw a dart at the globe",nextDart:"Throw a dart at the globe",
+  throw:"🎯 Throw",skip:"Skip",zipTxt:"ZIP",ipxPh:"1–3",ipxAria:"First 1 to 3 digits of the ZIP code",
+  desc_state:"Look at the place and guess the US state",desc_uszip:"Pick a ZIP prefix, then guess the town inside it",
+  m_state:"States",m_uszip:"Zipcodes",
+  replay:"▶ Restart",replayTip:"Replay the opening",
+  round:(n,tot,narrow)=>narrow?`${n}/${tot}`:`Round ${n}/${tot}`,total:n=>`🏆 ${n} pt`,pts:n=>`${n}pt`,digit:n=>`${n} dig.`,
+  nowScore:p=>`Right now: <b>${p} pt</b>`,lastHint:"Final hint (it won't widen further)",
+  widen:"← Widen the hint",cd:(s,p)=>`Next hint in <b>${s}</b>s — drops to ${p} pt`,cdIdle:"The countdown starts when the dart lands",
+  svMock:"Street View (demo)",svtitle:"Street View",mapTitle:"Map (tap to drop a marker)",
+  fov:d=>`View ${d}°`,fovAbout:d=>`View ~${d}°`,noSV:"No Street View at this spot",
+  radius:km=>`Radius ~${km} km`,zipArea:"ZIP area",
+  capEnter:"Enter 1–3 digits",capShow:"Showing the area on the map",capAnswered:(unit,zip)=>`Answer: ${unit} ${zip}`,unitZip:"ZIP",
+  hintScore:"5 digits = 10 pt → 1 digit = 2 pt",hintLine:(what,score)=>`<span><b>Guess the ${what}</b> (${score})</span>`,
+  tipPref:"Place names are hidden. Read the roads and coastlines. Every time a digit drops, the map and Street View widen — from 3 digits you can walk around in Street View.",
+  tipZip:"Type 1–3 digits of a ZIP code and the area is outlined in green on the map (an approximate range). Then guess the city or town inside it.",
+  pinNote:"📍 Marker placed. Type your answer below.",
+  pickPlease:"Select…",lblPref:"State",lblPx:"ZIP prefix (1–3 digits)",pxEx:"e.g. 100",lblPlace:"City or town",placePh:"e.g. Seattle",submit:"Submit",
+  fillAll:"⚠ Please fill in every field.",win:"🎉 Correct!! 🎉",cheer:["Perfect at the narrowest hint!","Great!","Nice!"],
+  winSub:(cheer,unit,seen)=>`${cheer} You got it with ${seen} ${unit} digits showing`,lose:"😢 Miss",loseSub:(mine,wrong)=>`Your answer: ${mine} (wrong: ${wrong})`,
+  revealTitle:"The answer",zipMark:"ZIP ",nextEnd:"See results",nextDartBtn:"Next dart",
+  gameOver:"🏁 Game over",share:"Share",rank:"Leaderboard",again:"Play again",
+  rating:t=>t>=45?"Legend!":t>=30?"Master":t>=18?"Expert":t>=8?"Intermediate":t>0?"Beginner":"All missed…",
+  finalSub:(rate,label)=>`${rate} (max 50 pt · ${label})`,
+  histAt:when=>`Achieved ${when}`,histBest:" 🎊 Personal best!",histCap:b=>`History (best ${b} pt)`,histTh:["Date","Mode","","Score"],
+  shareText:(short,daily,total,marks,url)=>`Zapper ${short}${daily} ${total} pt ${marks}\n${url}`,dailyWord:d=>` daily ${d}`,
+  noRegion:"No area for that prefix",etc:", …",partial:" (partly)",needPrefix:"Enter 1–3 digits of the ZIP code",noPlace:"Couldn't find a place for that prefix",
+  noSVRounds:"Couldn't find places with Street View",noGeocode:"Couldn't get places from Geocoding",
+  noPractice:"No practice question for this prefix. Try other digits.",finding:"Finding places…",noRounds:"Couldn't prepare the questions",noQuestion:"No questions",
+  practice5:"Practice questions (simple map)",practiceZip:"Practice questions (simple map)",practiceZip2:"Practice questions for this prefix",practiceFail:"Couldn't load the map — playing practice questions",enterPrefix:"Enter 1–3 digits to start",
+  note:`How to play: pick a game on the first screen or from the menu at the top right. <b>States</b> — guess the US state. <b>Zipcodes</b> — type 1–3 digits of a ZIP code, the area is outlined in green on the map, then guess the city or town inside it. Tap the 🇯🇵 flag on the first screen for the Japan version.<br>The ZIP code loses a digit every 20 seconds, and your score depends on how many digits were still visible: 5 digits 10 pt / 4 digits 8 pt / 3 digits 6 pt / 2 digits 4 pt / 1 digit 2 pt. A miss scores 0. Five rounds, up to 50 points.`
+}};
+const t=(k,...a)=>{const v=I18N[LANG][k]!==undefined?I18N[LANG][k]:I18N.ja[k];return typeof v==="function"?v(...a):v;};
 const fmt=n=>(Math.round(n*10)/10).toString();
 let mode=(()=>{
   const q=new URLSearchParams(location.search).get("mode");
   if(DAILY&&!q)return "pref";
-  const s=q||localStorage.getItem("zmap:mode")||"pref";
-  return MODES[s]&&s!=="city"&&s!=="vd"?s:"pref";
+  const s=q||localStorage.getItem("zmap:mode")||"";
+  return LANG_MODES[LANG].includes(s)?s:LANG_MODES[LANG][0];
 })();
+// 画面の固定文言を、選んだ言語で入れる
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.title=`Zapper — ${t("tagline")}`;
+  $("tagline").textContent=t("tagline");
+  $("throw").textContent=t("throw");$("skip").textContent=t("skip");
+  $("pxtxt").textContent=t("zipTxt");$("ipx").placeholder=t("ipxPh");$("ipx").setAttribute("aria-label",t("ipxAria"));
+  $("replay").textContent=t("replay");$("replay").title=t("replayTip");
+  $("widen").textContent=t("widen");$("svtitle").textContent=t("svMock");$("maptitle").textContent=t("mapTitle");
+  $("cdtxt").textContent=t("cdIdle");$("note").innerHTML=t("note");
+  document.querySelectorAll("#flags button").forEach(b=>{b.classList.toggle("on",b.dataset.lang===LANG);b.onclick=()=>setLang(b.dataset.lang);});
+  const items=LANG==="ja"?["daily","pref","expert"]:["state","uszip"];
+  $("gmenu").innerHTML=items.map(k=>`<button type="button" data-go="${k}">${t("m_"+k)}</button>`).join("");
+  $("imode").innerHTML=LANG_MODES[LANG].map(k=>`<option value="${k}">${MODES[k].label}</option>`).join("");
+}
+function setLang(l){
+  if(l===LANG)return;
+  try{localStorage.setItem("zmap:lang",l);localStorage.setItem("zmap:mode",LANG_MODES[l][0]);}catch(e){}
+  location.href=location.pathname;
+}
 let prefix="",loadedMode="",loadedPrefix="";
 function inJapan(lon,lat){return ISLANDS.some(poly=>{let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const [xi,yi]=poly[i],[xj,yj]=poly[j];if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)c=!c;}return c;});}
 const JP_FRAME={lon0:128,lon1:146,lat0:30,lat1:46},US_FRAME={lon0:-125,lon1:-66,lat0:24,lat1:50};
 let FRAME=JP_FRAME;
-function applyFrame(){FRAME=mode==="state"?US_FRAME:JP_FRAME;}
+function applyFrame(){FRAME=isUS()?US_FRAME:JP_FRAME;}
 applyFrame();
 const W=400,H=480;
 function px(lon,lat){return [(lon-FRAME.lon0)/(FRAME.lon1-FRAME.lon0)*W,(FRAME.lat1-lat)/(FRAME.lat1-FRAME.lat0)*H];}
 function kmPerPx(){return (111*(FRAME.lat1-FRAME.lat0))/H;}
-function zipLen(){return mode==="state"?5:7;}
+function zipLen(){return isUS()?5:7;}
 const ISLANDS=[
  [[130.9,34.0],[131.0,34.4],[132.5,35.4],[134.2,35.6],[135.7,35.7],[136.0,36.2],[136.7,37.3],[137.3,37.5],[138.5,37.4],[139.0,38.0],[139.8,39.5],[140.0,40.5],[140.3,41.2],[141.4,41.4],[141.5,40.0],[141.9,39.0],[141.0,38.2],[140.9,37.0],[140.6,36.2],[140.9,35.7],[140.3,35.2],[139.8,34.9],[139.2,35.2],[138.8,34.7],[137.3,34.6],[136.9,34.7],[136.3,34.2],[135.2,33.5],[135.1,34.3],[134.8,34.7],[133.0,34.4],[132.2,34.2]],
  [[140.0,41.6],[140.3,43.2],[141.4,43.2],[141.7,45.4],[142.9,44.3],[144.4,44.0],[145.5,43.4],[144.2,42.9],[143.3,42.0],[141.0,42.4]],
@@ -596,11 +758,10 @@ function vbFor(stg,full){const q=ROUNDS[r];if(!q)return {x:0,y:0,w:W,h:H};const 
 function fitRegion(){
   applyFrame();
   if(gMode){gSetView();return;}
-  const boxes=regionBoxes(prefix,true);
-  if(!boxes.length){setVB({x:0,y:0,w:W,h:H},true);return;}
-  let lon0=180,lon1=-180,lat0=90,lat1=-90;
-  for(const b of boxes){lon0=Math.min(lon0,b.lon[0]);lon1=Math.max(lon1,b.lon[1]);lat0=Math.min(lat0,b.lat[0]);lat1=Math.max(lat1,b.lat[1]);}
-  const padL=Math.max(0.35,(lon1-lon0)*0.16),padA=Math.max(0.25,(lat1-lat0)*0.16);
+  const bb=regionBBox();
+  if(!bb){setVB({x:0,y:0,w:W,h:H},true);return;}
+  const {lon0,lon1,lat0,lat1}=bb;
+  const padL=Math.max(0.05,(lon1-lon0)*0.16),padA=Math.max(0.04,(lat1-lat0)*0.16);
   const [x0,yN]=px(lon0-padL,lat1+padA),[x1,yS]=px(lon1+padL,lat0-padA);
   setVB({x:Math.min(x0,x1),y:Math.min(yN,yS),w:Math.abs(x1-x0),h:Math.abs(yS-yN)},true);
 }
@@ -614,13 +775,16 @@ function drawMap(){
   if(gMode){gDrawMap();return;}
   const m=$("map");m.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const u=vb.w/W;
-  const land=mode==="state"?US_LAND:ISLANDS;
+  const land=isUS()?US_LAND:ISLANDS;
   let s=land.map(p=>`<polygon points="${p.map(([a,b])=>px(a,b).join(",")).join(" ")}" fill="var(--land)" stroke="var(--mute)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".9"/>`).join("");
   const q=ROUNDS[r];if(!q){m.innerHTML=s;return;}
   const [cx,cy]=px(q.lon,q.lat);
   s=`<g stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke" opacity=".6">${[...Array(9)].map((_,i)=>`<line x1="${i*50}" y1="0" x2="${i*50}" y2="${H}" vector-effect="non-scaling-stroke"/>`).join("")}${[...Array(10)].map((_,i)=>`<line x1="0" y1="${i*50}" x2="${W}" y2="${i*50}" vector-effect="non-scaling-stroke"/>`).join("")}</g>`+s;
-  if(mode==="expert"&&!answered){
-    s+=regionBoxes(prefix,true).map(b=>{const [x0,y0]=px(b.lon[0],b.lat[1]),[x1,y1]=px(b.lon[1],b.lat[0]);return `<rect x="${Math.min(x0,x1)}" y="${Math.min(y0,y1)}" width="${Math.abs(x1-x0)}" height="${Math.abs(y1-y0)}" fill="var(--ring)" fill-opacity=".28" stroke="var(--ring)" stroke-width="3" vector-effect="non-scaling-stroke"/>`;}).join("");
+  if(isZipMode()&&!answered){
+    if(regionShapes.length){
+      // 範囲を緑の線で囲って薄く塗る(一部だけが含まれる市区町村は、さらに薄く細く)
+      s+=regionShapes.map(sh=>`<path d="${sh.rings.map(rg=>"M"+rg.map(([a,b])=>px(a,b).map(v=>Math.round(v*100)/100).join(",")).join("L")+"Z").join("")}" fill-rule="evenodd" fill="var(--ring)" fill-opacity="${sh.partial?.12:.3}" stroke="var(--ring)" stroke-opacity="${sh.partial?.65:1}" stroke-width="${sh.partial?2:3}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`).join("");
+    }else s+=regionBoxes(prefix,true).map(b=>{const [x0,y0]=px(b.lon[0],b.lat[1]),[x1,y1]=px(b.lon[1],b.lat[0]);return `<rect x="${Math.min(x0,x1)}" y="${Math.min(y0,y1)}" width="${Math.abs(x1-x0)}" height="${Math.abs(y1-y0)}" fill="var(--ring)" fill-opacity=".28" stroke="var(--ring)" stroke-width="3" vector-effect="non-scaling-stroke"/>`;}).join("");
   }else{
     const rad=RADIUS_KM[stage]/kmPerPx();
     s+=`<circle cx="${cx}" cy="${cy}" r="${rad}" fill="var(--ring)" fill-opacity=".22" stroke="var(--ring)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
@@ -634,7 +798,7 @@ function drawSV(){
   const q=ROUNDS[r],h=q.hue;
   const zoom=[2.4,2.0,1.6,1.25,1.0][stage];
   const fovs=[30,45,60,85,110][stage];
-  $("fov").textContent=`視野 ${fovs}°`;
+  $("fov").textContent=t("fov",fovs);
   let b="";const bw=[70,90,60,100,80,75];let x=-20;
   for(let i=0;i<9;i++){const w=bw[i%6],hh=70+((i*37+h)%90);b+=`<rect x="${x}" y="${150-hh}" width="${w}" height="${hh+10}" fill="hsl(${(h+i*14)%360} 18% ${38+i%3*8}%)"/>`;
     for(let j=0;j<hh/18;j++)b+=`<rect x="${x+8}" y="${152-hh+j*18}" width="${w-16}" height="8" fill="hsl(${h} 30% 78%)" opacity=".55"/>`;x+=w-4;}
@@ -652,7 +816,7 @@ function drawSV(){
 }
 function shownZipDigits(){
   const len=zipLen();
-  if(mode==="expert"&&!answered)return ((prefix||"")+"_".repeat(len)).slice(0,len);
+  if(isZipMode()&&!answered)return ((prefix||"")+"_".repeat(len)).slice(0,len);
   const z=String((ROUNDS[r]&&ROUNDS[r].zip)||"").replace(/\D/g,"");
   const keep=Math.max(0,len-stage);
   return (z.slice(0,keep)+"_".repeat(len)).slice(0,len);
@@ -660,7 +824,7 @@ function shownZipDigits(){
 function drawZip(){
   if(!ROUNDS[r])return;
   const len=zipLen(),d=shownZipDigits();
-  const keep=mode==="expert"&&!answered?(prefix||"").length:len-stage;
+  const keep=isZipMode()&&!answered?(prefix||"").length:len-stage;
   let html=`<div class="zboard">`;
   for(let i=0;i<len;i++){
     if(len===7&&i===3)html+=`<div class="zcol hy"><span class="zd">-</span></div>`;
@@ -668,34 +832,34 @@ function drawZip(){
     let mark="";
     if(stageAt>=0&&stageAt<=4){
       const cls=stageAt===stage?"now":stageAt<stage?"past":(answered?"":"next");
-      mark=`<button type="button" class="zmark ${cls}"${cls==="next"?` data-i="${stageAt}"`:" disabled"}><b>${POINTS[stageAt]}点</b><small>${len-stageAt}桁</small></button>`;
+      mark=`<button type="button" class="zmark ${cls}"${cls==="next"?` data-i="${stageAt}"`:" disabled"}><b>${t("pts",POINTS[stageAt])}</b><small>${t("digit",len-stageAt)}</small></button>`;
     }
     html+=`<div class="zcol ${i<keep?"":"off"}"><span class="zd">${d[i]||"_"}</span>${mark}</div>`;
   }
-  const unit=mode==="state"?"ZIP":"郵便番号";
-  const cap=answered?`正解の${unit} ${ROUNDS[r].zip}`:mode==="expert"?(prefix.length>=2?"2桁の範囲を地図に表示中":prefix.length===1?"1桁の地域を地図に表示中":"上1〜2桁を入力"):"";
+  const unit=t("unitZip");
+  const cap=answered?t("capAnswered",unit,ROUNDS[r].zip):isZipMode()?(prefix.length>=1?(regionInfo.names.length?regionInfo.names.slice(0,2).join(" / ")+(regionInfo.names.length>2?t("etc"):""):t("capShow")):t("capEnter")):"";
   $("zip").innerHTML=html+(cap?`<small>${cap}</small>`:"");
   $("steps").innerHTML=[0,1,2,3,4].map(i=>`<i class="${i<=stage?"on":""}"></i>`).join("");
-  $("area").textContent=mode==="expert"&&!answered?(prefix.length>=2?"郵便番号の範囲":"郵便番号の地域"):`半径 約${RADIUS_KM[stage]}km`;
+  $("area").textContent=isZipMode()&&!answered?t("zipArea"):t("radius",RADIUS_KM[stage]);
 }
-function render(){drawMap();drawSV();drawZip();const narrow=matchMedia("(max-width:720px)").matches;$("round").textContent=narrow?`${r+1}/${ROUNDS.length}`:`ラウンド ${r+1}/${ROUNDS.length}`;{const el=$("total"),tx=`🏆 ${fmt(total)}点`;if(el.textContent!==tx){el.textContent=tx;if(total>0){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}}}updateLadder();}
+function render(){drawMap();drawSV();drawZip();const narrow=matchMedia("(max-width:720px)").matches;$("round").textContent=t("round",r+1,ROUNDS.length,narrow);{const el=$("total"),tx=t("total",fmt(total));if(el.textContent!==tx){el.textContent=tx;if(total>0){el.classList.remove("pop");void el.offsetWidth;el.classList.add("pop");}}}updateLadder();}
 const STAGE_MS=20000;let deadline=0;
 function updateLadder(){
-  $("potential").innerHTML=answered?"":`いま当てると <b>${POINTS[stage]}点</b>`;
+  $("potential").innerHTML=answered?"":t("nowScore",POINTS[stage]);
 }
 function tick(){
   if(answered){clearInterval(timer);$("cdtxt").textContent="";$("cdbar").style.width="0";return;}
-  if(stage>=4){$("cdbar").style.width="0";$("cdtxt").textContent="最終ヒント(これ以上は広がりません)";return;}
+  if(stage>=4){$("cdbar").style.width="0";$("cdtxt").textContent=t("lastHint");return;}
   const left=deadline-performance.now();
   if(left<=0){widen();return;}
   $("cdbar").style.width=(left/STAGE_MS*100)+"%";$("cdbar").className=left<5000?"low":"";
-  $("cdtxt").innerHTML=`次のヒントまで <b>${Math.ceil(left/1000)}</b> 秒 — 広がると ${POINTS[stage+1]}点 に下がります`;
+  $("cdtxt").innerHTML=t("cd",Math.ceil(left/1000),POINTS[stage+1]);
 }
 function schedule(){clearInterval(timer);deadline=performance.now()+STAGE_MS;tick();timer=setInterval(tick,100);}
-function widen(to){const n=Math.min(4,to??stage+1);if(answered||n<=stage)return;stage=n;$("widen").disabled=stage>=4;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();if(mode==="expert"&&!answered)fitRegion();else setVB(vbFor(stage));hint();}
+function widen(to){const n=Math.min(4,to??stage+1);if(answered||n<=stage)return;stage=n;$("widen").disabled=stage>=4;zmapNative.haptic("light");deadline=performance.now()+STAGE_MS;render();if(isZipMode()&&!answered)fitRegion();else setVB(vbFor(stage));hint();}
 function syncChrome(){
   const m=MODES[mode]||MODES.pref;
-  if($("menubtn"))$("menubtn").textContent=(DAILY?"今日の問題":m.short)+" ▾";
+  if($("menubtn"))$("menubtn").textContent=(DAILY?t("m_daily"):m.short)+" ▾";
   if($("subtitle"))$("subtitle").textContent=m.label;
   if($("gmenu"))$("gmenu").querySelectorAll("button").forEach(b=>b.classList.toggle("on",(b.dataset.go==="daily"&&DAILY)||(b.dataset.go===mode&&!DAILY)));
 }
@@ -709,9 +873,9 @@ function goGame(which){
 }
 function hint(){
   const m=MODES[mode]||MODES.pref;
-  const score=mode==="state"?"ZIP 5桁で10点 → 1桁で2点":"郵便番号 7桁で10点 → 3桁で2点";
-  const tip=mode==="expert"?"郵便番号を1桁入れると、その地域を地図に表示します。2桁にすると、さらにその番号に合った狭い範囲になります。市区町村か街の名前を答えてください。":"地図は地名を消してあります。道や海岸線の形から推理しよう。桁が外れるたびに地図とストリートビューの視野が広がり、5桁からはストリートビューを歩いて周りを見られます";
-  $("hint").innerHTML=`<span><b>${m.what}</b>を当てよう(${score})</span><span>${tip}</span>`;
+  const score=t("hintScore");
+  const tip=isZipMode()?t("tipZip"):t("tipPref");
+  $("hint").innerHTML=`${t("hintLine",m.what,score)}<span>${tip}</span>`;
   if($("dbadge"))$("dbadge").textContent=m.short||m.label;
   syncChrome();
 }
@@ -729,27 +893,36 @@ $("map").addEventListener("click",e=>{
 
 
 // ---- 地図のピンは推理用の目印だけ。ピンの住所は答えそのものになるので表示も自動入力もしない ----
-function pinPlaced(){const el=$("pinst");el.style.display="";el.textContent="📍 目印を立てました。答えは下の欄に入力してください";}
+function pinPlaced(){const el=$("pinst");el.style.display="";el.textContent=t("pinNote");}
 
 // ---- 回答フォーム: 都道府県は全件から選択、市区町村・町名・番地は自由入力(候補を並べると正解が混ざって答えが絞れてしまうため) ----
 const PREFS=["北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県","茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県","新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県","徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"];
-const STATES=Object.values(STATE_CODE).sort((a,b)=>a.localeCompare(b,"ja"));
+const STATES=Object.values(STATE_CODE).sort((a,b)=>a.localeCompare(b,"en"));
 const FIELDS={pref:["pref"],state:["pref"],city:["city"],vd:["city","town","num"]};
 const FLABEL={pref:"都道府県",city:"市区町村",town:"町名",num:"丁目・番地",place:"市区町村または街"};
+const flabel=k=>LANG==="en"?(k==="pref"?"State":"City or town"):FLABEL[k];
 const FHOLD={city:"例: 金沢市(都道府県と「市」「区」「町」「村」は省略可)",town:"例: 香林坊(丁目は不要)",num:"例: 2丁目"};
 const COUNTRY={JP:"🇯🇵 日本",US:"🇺🇸 アメリカ",GB:"🇬🇧 イギリス",IN:"🇮🇳 インド"};
 function buildForm(){
   let body="";
-  if(mode==="expert"){
-    body=`<label class="full">郵便番号の上1〜2桁<input id="px" inputmode="numeric" maxlength="2" autocomplete="off" value="${(prefix||"").replace(/\D/g,"")}" placeholder="例: 10"></label><label class="full">市区町村または街<input id="a_place" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例: 金沢市 または 香林坊" enterkeyhint="go"></label>`;
+  if(isZipMode()){
+    body=`<label class="full">${t("lblPx")}<input id="px" inputmode="numeric" maxlength="3" autocomplete="off" value="${(prefix||"").replace(/\D/g,"")}" placeholder="${t("pxEx")}"></label><label class="full">${t("lblPlace")}<input id="a_place" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${t("placePh")}" enterkeyhint="go"></label>`;
   }else if(mode==="state"){
-    body=`<label class="full">州<select id="a_pref"><option value="">選択してください</option>${STATES.map(p=>`<option>${p}</option>`).join("")}</select></label>`;
+    body=`<label class="full">${t("lblPref")}<select id="a_pref"><option value="">${t("pickPlease")}</option>${STATES.map(p=>`<option>${p}</option>`).join("")}</select></label>`;
   }else{
-    body=`<label class="full">都道府県<select id="a_pref"><option value="">選択してください</option>${PREFS.map(p=>`<option>${p}</option>`).join("")}</select></label>`;
+    body=`<label class="full">${t("lblPref")}<select id="a_pref"><option value="">${t("pickPlease")}</option>${PREFS.map(p=>`<option>${p}</option>`).join("")}</select></label>`;
   }
-  $("ans").innerHTML=body+`<button id="submit" class="primary" type="button">回答する</button>`;
+  $("ans").innerHTML=body+`<button id="submit" class="primary" type="button">${t("submit")}</button>`;
   const pxEl=$("px");
-  if(pxEl)pxEl.oninput=()=>{const v=pxEl.value.replace(/\D/g,"").slice(0,2);pxEl.value=v;if(v&&regionBoxes(v,true).length){prefix=v;fitRegion();drawZip();}};
+  // 桁を入れるたびに、その郵便番号の範囲を地図に出して、そこへ寄る
+  if(pxEl)pxEl.oninput=async()=>{
+    const v=pxEl.value.replace(/\D/g,"").slice(0,3);pxEl.value=v;
+    if(!v)return;
+    try{await loadRegion(v);}catch(e){console.warn(e);}
+    if(pxEl.value!==v||answered)return;
+    if(regionShapes.length||regionBoxes(v,true).length){prefix=v;fitRegion();drawZip();}
+    else if(prefix)loadRegion(prefix).then(()=>{fitRegion();drawZip();});   // 該当なし: 直前の範囲に戻す
+  };
   $("ans").querySelectorAll("input").forEach(el=>{if(el.id==="px")return;el.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)submitAnswer();};});
   $("submit").onclick=submitAnswer;
 }
@@ -773,52 +946,55 @@ function showResult(html,cls,confetti){
 function hideResult(){$("result").className="result";$("result").innerHTML="";}
 function submitAnswer(){
   if(answered)return;
-  const q=ROUNDS[r],f=mode==="expert"?["place"]:(FIELDS[mode]||["pref"]),v={};
+  const q=ROUNDS[r],f=isZipMode()?["place"]:(FIELDS[mode]||["pref"]),v={};
   for(const k of f){const el=$("a_"+k);v[k]=el?el.value.trim():"";}
-  if(f.some(k=>!v[k])){showResult("⚠ すべての欄を入力してください。","warn");return;}
-  const right={pref:x=>x===q.pref,place:x=>cityOk(x,q)||townOk(x,q.town||""),city:x=>cityOk(x,q),town:x=>townOk(x,q.town),num:x=>!q.num||digits(x)===digits(q.num)};
+  if(f.some(k=>!v[k])){showResult(t("fillAll"),"warn");return;}
+  // 米国は英語で、大文字小文字・記号・空白の違いを無視して、city か町名(neighborhood)のどちらかが合えば正解
+  const nEn=s=>String(s||"").normalize("NFKD").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const placeUS=x=>{const a=nEn(x);return !!a&&(a===nEn(q.city)||(!!q.town&&a===nEn(q.town)));};
+  const right={pref:x=>x===q.pref,place:x=>isUS()?placeUS(x):(cityOk(x,q)||townOk(x,q.town||"")),city:x=>cityOk(x,q),town:x=>townOk(x,q.town),num:x=>!q.num||digits(x)===digits(q.num)};
   const ok=f.every(k=>right[k](v[k]));
   answered=true;tick();
   f.forEach(k=>{const el=$("a_"+k);if(el)el.disabled=true;});$("submit").disabled=true;
   const pts=ok?POINTS[stage]:0;
   total+=pts;results.push({hit:ok,pts,stage});
-  const wrong=f.filter(k=>!right[k](v[k])).map(k=>FLABEL[k]);
+  const wrong=f.filter(k=>!right[k](v[k])).map(k=>flabel(k));
   const mine=f.map(k=>v[k]).join(" ");
   zmapNative.haptic(ok?"success":"error");
   if(ok){
-    const seen=zipLen()-stage,unit=mode==="state"?"ZIP":"郵便番号";
-    const cheer=stage===0?"一番狭いヒントで的中!":stage===1?"お見事!":"ナイス!";
-    showResult(`<div class="big">🎉 当たり!! 🎉</div><div class="pts">+${pts}点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${cheer} ${unit} ${seen}桁の段階で当てました</div>`,"win",true);
+    const seen=zipLen()-stage,unit=t("unitZip");
+    const cheer=t("cheer")[stage===0?0:stage===1?1:2];
+    showResult(`<div class="big">${t("win")}</div><div class="pts">+${t("pts",pts)}</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${t("winSub",cheer,unit,seen)}</div>`,"win",true);
   }else{
-    showResult(`<div class="big">😢 ハズレ</div><div class="pts">0点</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">あなたの答え: ${esc(mine)}(違った項目: ${wrong.join("・")})</div>`,"lose",false);
+    showResult(`<div class="big">${t("lose")}</div><div class="pts">${t("pts",0)}</div><div class="answer">📍 ${fullAnswer(q)}</div><div class="sub">${t("loseSub",esc(mine),wrong.join(" / "))}</div>`,"lose",false);
   }
   showLocal(q);
-  $("reveal").innerHTML=`<small>正解の場所</small><b>${fullAnswer(q)}</b><span>〒${q.zip}</span>`;$("reveal").className="reveal show";
+  $("reveal").innerHTML=`<small>${t("revealTitle")}</small><b>${fullAnswer(q)}</b><span>${t("zipMark")}${q.zip}</span>`;$("reveal").className="reveal show";
   $("widen").disabled=true;$("next").style.display="";
-  $("next").textContent=r===ROUNDS.length-1?"結果を見る":"次のダーツへ";
+  $("next").textContent=r===ROUNDS.length-1?t("nextEnd"):t("nextDartBtn");
   render();requestAnimationFrame(()=>setVB(vbFor(stage,true)));
 }
 // ---- 回答後: その県の名産・名所と、市区町村の紹介(Wikipedia の要約。取れなければ出さない) ----
 function showLocal(q){
-  const m=(window.ZMAP_MEIBUTSU||{})[q.pref];
+  const m=isUS()?null:(window.ZMAP_MEIBUTSU||{})[q.pref];
   const box=document.createElement("div");box.className="local";
-  box.innerHTML=(m?`<div><b>🍱 ${esc(q.pref)}の名産</b> ${m[0].map(esc).join("・")}</div><div><b>📸 名所</b> ${m[1].map(esc).join("・")}</div>`:"")+`<div class="wiki"></div>`;
+  box.innerHTML=(m?`<div><b>🍱 ${esc(t("meibutsu",q.pref))}</b> ${m[0].map(esc).join("・")}</div><div><b>📸 ${t("spots")}</b> ${m[1].map(esc).join("・")}</div>`:"")+`<div class="wiki"></div>`;
   $("result").appendChild(box);
   const ward=q.cityMain&&q.city!==q.cityMain?q.city.slice(q.cityMain.length):"";
-  const titles=[ward?`${ward} (${q.cityMain})`:q.city,`${q.city} (${q.pref})`,q.cityMain].filter((t,i,a)=>t&&a.indexOf(t)===i);
-  const rr=r;
-  (async()=>{for(const t of titles){try{
-    const res=await fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(t)}`);if(!res.ok)continue;
+  const titles=(isUS()?[`${q.city}, ${q.pref}`,q.city]:[ward?`${ward} (${q.cityMain})`:q.city,`${q.city} (${q.pref})`,q.cityMain]).filter((x,i,a)=>x&&a.indexOf(x)===i);
+  const rr=r,wikiHost=isUS()?"en.wikipedia.org":"ja.wikipedia.org";
+  (async()=>{for(const ti of titles){try{
+    const res=await fetch(`https://${wikiHost}/api/rest_v1/page/summary/${encodeURIComponent(ti)}`);if(!res.ok)continue;
     const d=await res.json();if(d.type!=="standard"||!d.extract||rr!==r)continue;
     const ex=d.extract.length>120?d.extract.slice(0,120)+"…":d.extract;
     box.querySelector(".wiki").innerHTML=`<b>🏙 ${esc(d.title)}</b> ${esc(ex)} <a href="${esc(d.content_urls.mobile.page)}" target="_blank" rel="noopener">Wikipedia</a>`;return;
   }catch(e){}}})();
 }
-const fullAnswer=q=>[q.pref,q.city,q.town,q.num].filter(Boolean).join(" ");
+const fullAnswer=q=>isUS()?`${q.city}${q.town&&q.town!==q.city?` (${q.town})`:""}, ${q.pref}`:[q.pref,q.city,q.town,q.num].filter(Boolean).join(" ");
 const esc=s=>s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 $("widen").onclick=()=>widen();
 $("zip").onclick=e=>{const el=e.target.closest(".zmark.next");if(el)widen(+el.dataset.i);};
-function rating(t){return t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…"}
+const rating=s=>t("rating",s);
 // ---- 得点の履歴(この端末の localStorage に最新30件) ----
 function saveHistory(marks){
   let h=[];try{h=JSON.parse(localStorage.getItem("zmap:history")||"[]");}catch(e){}
@@ -826,24 +1002,25 @@ function saveHistory(marks){
   h.unshift(me);h=h.slice(0,30);try{localStorage.setItem("zmap:history",JSON.stringify(h));}catch(e){}
   const best=Math.max(...h.map(x=>x.total)),d2=n=>String(n).padStart(2,"0");
   const when=iso=>{const d=new Date(iso);return `${d.getFullYear()}/${d2(d.getMonth()+1)}/${d2(d.getDate())} ${d2(d.getHours())}:${d2(d.getMinutes())}`;};
-  return `<div class="sub">${when(me.at)} に達成${total>=best&&h.length>1?" 🎊 自己ベスト!":""}</div>`+
-    `<table class="hist"><caption>得点の履歴(最高 ${fmt(best)}点)</caption><tr><th>日時</th><th>モード</th><th></th><th>得点</th></tr>`+
-    h.slice(0,10).map((x,i)=>`<tr class="${i===0?"now":""}"><td>${when(x.at)}${x.daily?" 📅":""}</td><td>${esc((MODES[x.mode]||{}).label||"")}</td><td>${esc(x.marks||"")}</td><td class="p">${fmt(x.total)}点${x.total===best?" 👑":""}</td></tr>`).join("")+`</table>`;
+  const th=t("histTh");
+  return `<div class="sub">${t("histAt",when(me.at))}${total>=best&&h.length>1?t("histBest"):""}</div>`+
+    `<table class="hist"><caption>${t("histCap",fmt(best))}</caption><tr>${th.map(x=>`<th>${x}</th>`).join("")}</tr>`+
+    h.slice(0,10).map((x,i)=>`<tr class="${i===0?"now":""}"><td>${when(x.at)}${x.daily?" 📅":""}</td><td>${esc((MODES[x.mode]||{}).label||"")}</td><td>${esc(x.marks||"")}</td><td class="p">${t("pts",fmt(x.total))}${x.total===best?" 👑":""}</td></tr>`).join("")+`</table>`;
 }
 $("next").onclick=()=>{
   if(r===ROUNDS.length-1){
     const marks=results.map(x=>x.hit?(x.stage===0?"🟨":"🟩"):"⬜");
     const qs=DAILY?"?daily=1":(mode==="pref"?"":"?mode="+mode);
-    const shareText=`Zapper ${MODES[mode].short}${DAILY?" デイリー "+TODAY:""} ${fmt(total)}点 ${marks.join("")}\n${location.origin}${location.pathname}${qs}`;
-    showResult(`<div class="big">🏁 ゲーム終了</div><div class="pts">${fmt(total)}点</div><div class="sub">${rating(total)}(最大50点・${MODES[mode].label})<br>${results.map((x,i)=>marks[i]+(x.hit?`${zipLen()-x.stage}桁`:"")).join(" ")}</div>`+
-      `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">結果を共有</button>${zmapNative.inApp?'<button id="lb">ランキング</button>':""}</div>`+saveHistory(marks.join("")),"final",total>0);
+    const shareText=t("shareText",MODES[mode].short,DAILY?t("dailyWord",TODAY):"",fmt(total),marks.join(""),`${location.origin}${location.pathname}${qs}`);
+    showResult(`<div class="big">${t("gameOver")}</div><div class="pts">${t("pts",fmt(total))}</div><div class="sub">${t("finalSub",rating(total),MODES[mode].label)}<br>${results.map((x,i)=>marks[i]+(x.hit?t("digit",zipLen()-x.stage):"")).join(" ")}</div>`+
+      `<div class="bar" style="justify-content:center;margin-top:10px"><button id="share">${t("share")}</button>${zmapNative.inApp?`<button id="lb">${t("rank")}</button>`:""}</div>`+saveHistory(marks.join("")),"final",total>0);
     $("share").onclick=()=>zmapNative.share(shareText);
     if($("lb"))$("lb").onclick=zmapNative.leaderboard;
     zmapNative.score(total,DAILY);
     zmapNative.askReminder();
-    $("next").textContent="もう一度";$("next").onclick=()=>location.reload();return;}
+    $("next").textContent=t("again");$("next").onclick=()=>location.reload();return;}
   cancelAnimationFrame(vbAnim);r++;stage=0;answered=false;pin=null;$('pinst').style.display='none';$("reveal").className="reveal";vb=vbFor(0);hideResult();$("widen").disabled=false;$("next").style.display="none";
-  render();if(mode==="expert")fitRegion();else if(gMode)gSetView();startIntro(()=>{hint();schedule();},true);
+  render();if(isZipMode())fitRegion();else if(gMode)gSetView();startIntro(()=>{hint();schedule();},true);
 };
 
 // ---- オープニング: 地球儀 → ダーツ → ズームイン ----
@@ -868,47 +1045,57 @@ function startIntro(done,auto){
   const intro=$("intro"),cv=$("ic"),ctx=cv.getContext("2d");
   let finished=false,raf,tThrow=null,a0=0,l0F=0,curL0=0;
   intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
-  $("title").innerHTML=mode==="expert"&&loadedMode!=="expert"
-    ? `エキスパート街当て<small>郵便番号の上1桁か2桁を入れて、ダーツを投げよう</small>`
-    : `ダーツ ${r+1} / ${ROUNDS.length}<small>${r===0?"モードを選んで、":""}地球儀にダーツを投げよう</small>`;
+  $("title").textContent=r===0?t("pickMode"):t("nextDart");
   $("ctrl").style.display="flex";
-  // モードはゲームの途中で変えられない。選べるのは1投目だけ
+  // モードと言語はゲームの途中で変えられない。選べるのは1投目だけ
   const sel=$("imode");sel.value=mode;sel.style.display=r===0?"":"none";
-  const syncPx=()=>{$("pxlab").style.display=sel.value==="expert"&&r===0?"flex":"none";};
+  $("flags").style.display=r===0?"":"none";
+  const syncPx=()=>{
+    const zipSel=sel.value==="expert"||sel.value==="uszip";
+    $("pxlab").style.display=zipSel&&r===0?"flex":"none";
+    $("modedesc").textContent=r===0?t("desc_"+sel.value):"";
+  };
   sel.onchange=syncPx;syncPx();
-  if($("ipx"))$("ipx").oninput=()=>{const v=$("ipx").value.replace(/\D/g,"").slice(0,2);$("ipx").value=v;if($("pxhint"))$("pxhint").textContent=v?prefixHint(v):"";};
+  // 桁を入れるたびに、該当する地域の名前を出す(地図は遊び始めてから)
+  if($("ipx"))$("ipx").oninput=async()=>{
+    const el=$("ipx"),v=el.value.replace(/\D/g,"").slice(0,3);el.value=v;
+    const h=$("pxhint");if(!h)return;
+    if(!v){h.textContent="";return;}
+    const txt=await regionHint(v);if(el.value===v)h.textContent=txt;
+  };
   let q=ROUNDS[r]||{lon:139,lat:36},loading=false;
   const pick=()=>{
     if(r!==0)return;
     mode=sel.value;
     try{localStorage.setItem("zmap:mode",mode);}catch(e){}
-    if(mode==="expert"&&$("ipx"))prefix=$("ipx").value.replace(/\D/g,"").slice(0,2);
+    if(isZipMode()&&$("ipx"))prefix=$("ipx").value.replace(/\D/g,"").slice(0,3);
     applyFrame();
   };
   async function ensurePlayable(){
     pick();
-    if(mode==="expert"&&(!/^\d{1,2}$/.test(prefix)||!regionBoxes(prefix,false).length)){
-      $("title").innerHTML=`エキスパート街当て<small>郵便番号の上1桁か2桁を入れてください</small>`;
-      $("ctrl").style.display="flex";
-      return false;
+    if(isZipMode()){
+      const bad=msg=>{$("title").textContent=msg;$("ctrl").style.display="flex";return false;};
+      if(!/^\d{1,3}$/.test(prefix))return bad(t("needPrefix"));
+      try{await loadRegion(prefix);}catch(e){console.warn(e);}
+      if(!regionShapes.length&&!regionBoxes(prefix,false).length)return bad(t("noRegion"));
     }
-    if(loadedMode!==mode||(mode==="expert"&&loadedPrefix!==prefix)||!ROUNDS.length){
+    if(loadedMode!==mode||(isZipMode()&&loadedPrefix!==prefix)||!ROUNDS.length){
       $("ctrl").style.display="none";
-      $("title").innerHTML=`${esc(MODES[mode].label)}<small>出題地点を探しています…</small>`;
+      $("title").textContent=t("finding");
       try{await prepareRounds();}
       catch(err){
         $("ctrl").style.display="flex";
-        $("title").innerHTML=`${esc(MODES[mode].label)}<small>${esc(err.message||"出題を用意できませんでした")}</small>`;
+        $("title").textContent=err.message||t("noRounds");
         return false;
       }
     }
     q=ROUNDS[r];
-    if(!q){$("ctrl").style.display="flex";$("title").innerHTML=`出題がありません`;return false;}
-    $("title").innerHTML=`ダーツ ${r+1} / ${ROUNDS.length}<small>地球儀にダーツを投げよう</small>`;
+    if(!q){$("ctrl").style.display="flex";$("title").textContent=t("noQuestion");return false;}
+    $("title").textContent=t("nextDart");
     $("title").style.opacity="1";
     return true;
   }
-  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";buildForm();hint();render();if(mode==="expert")fitRegion();else setVB(vbFor(0),true);done();};
+  const finish=()=>{if(finished)return;finished=true;cancelAnimationFrame(raf);removeEventListener("resize",size);intro.style.display="none";intro.style.opacity="";$("ctrl").style.display="none";buildForm();hint();render();if(isZipMode())fitRegion();else setVB(vbFor(0),true);done();};
   const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
   $("skip").onclick=async()=>{
     if(loading||finished)return;loading=true;
@@ -947,7 +1134,10 @@ function startIntro(done,auto){
     // 背景(星)
     ctx.fillStyle="#0a1220";ctx.fillRect(0,0,w,h);
     for(let i=0;i<60;i++){ctx.fillStyle="rgba(255,255,255,"+(0.3+0.5*Math.abs(Math.sin(t*1.5+i)))+")";ctx.fillRect((i*131)%w,(i*71)%h,1.5,1.5);}
-    const R=Math.min(w*0.9,h)*0.3,cx=w*0.62,cy=h*0.52;
+    // 上の案内・選択欄・説明(#top)にかぶらないよう、地球儀は下の余白に収める
+    const topZone=w<720?340:300;
+    const R=Math.max(40,Math.min(Math.min(w*0.9,h)*0.3,(h-topZone-20)/2.5)),cx=w*0.62;
+    const cy=Math.min(Math.max(topZone+R*1.1,h*0.62),h-1.4*R-6);
     const l0=tau<0?70*t:a0+(l0F-a0)*ease(Math.min(1,tau/T_HIT));
     curL0=l0;
     const tp=proj(q.lon,q.lat,q.lon,cx,cy,R);   // 停止時の的の位置
@@ -1012,7 +1202,7 @@ function startIntro(done,auto){
     ctx.beginPath();ctx.arc(cx,cy,R*1.08,-Math.PI*.62,Math.PI*.62);ctx.stroke();
     ctx.fillStyle="#d4a017";for(const s of [-1,1]){ctx.beginPath();ctx.arc(cx,cy+s*R*1.08,R*.035,0,7);ctx.fill();}
     // 人物(頭を大きめにした、ちょっとリアルなデフォルメ)
-    const u=Math.min(w,h)/540,px0=w*0.2,bob=tau<0?Math.sin(t*3)*1.5*u:0,py0=h*0.8;
+    const u=Math.min(w,h)/540,px0=w*0.2,bob=tau<0?Math.sin(t*3)*1.5*u:0,py0=Math.min(h-10*u,Math.max(h*0.8,topZone+185*u));
     const leanAt=x=>x<0?0:Math.min(1,x/0.3)*0.08,lean=leanAt(tau),du=0.55*u,HOLD_A=-0.3;   // ダーツは頭の幅の半分くらいの大きさ
     // 投げる腕: 肘を前に上げて構え、前腕だけを振り出す(ダーツの投げ方)。k=振り出し 0→1、f=フォロースルー 0→1
     const sx0=px0+14*u,sy0=py0-126*u+bob,L1=42*u,L2=30*u;
@@ -1095,44 +1285,44 @@ function startIntro(done,auto){
 }
 function offlineRounds(){
   if(mode==="state")return shuffled(US_PLACES,roundRandom()).slice(0,5).map(q=>({...q}));
-  if(mode==="expert"){
-    const got=OFFLINE.filter(q=>String(q.zip).replace(/\D/g,"").startsWith(prefix));
-    if(!got.length)throw new Error("この番号の練習問題はありません。別の1〜2桁を入れてください");
+  if(isZipMode()){
+    const got=(isUS()?US_PLACES:OFFLINE).filter(q=>String(q.zip).replace(/\D/g,"").startsWith(prefix));
+    if(!got.length)throw new Error(t("noPractice"));
     return shuffled(got,roundRandom()).slice(0,5).map(q=>({...q}));
   }
   return (DAILY?shuffled(DUMMY_ROUNDS,roundRandom()):DUMMY_ROUNDS.slice()).map(q=>({...q}));
 }
 async function prepareRounds(){
   applyFrame();
-  const country=mode==="state"?"US":"JP";
-  if(mode==="expert"){
-    if(!MAPS_KEY){ROUNDS=offlineRounds();$("keybadge").textContent="練習用の問題(地図は簡易表示)";}
+  const country=isUS()?"US":"JP";
+  if(isZipMode()){
+    if(!MAPS_KEY){ROUNDS=offlineRounds();$("keybadge").textContent=t("practiceZip");}
     else{
       try{ROUNDS=await loadExpertRounds(5);$("keybadge").textContent="";}
-      catch(e){console.warn(e);ROUNDS=offlineRounds();$("keybadge").textContent="この番号は練習用の問題です";}
+      catch(e){console.warn(e);ROUNDS=offlineRounds();$("keybadge").textContent=t("practiceZip2");}
     }
   }else if(!MAPS_KEY){
-    ROUNDS=offlineRounds();$("keybadge").textContent="練習用の5問(地図は簡易表示)";
+    ROUNDS=offlineRounds();$("keybadge").textContent=t("practice5");
   }else{
     try{ROUNDS=await loadRandomRounds(5,country);$("keybadge").textContent="";}
     catch(e){console.warn(e);
       try{ROUNDS=await loadRoundsFromGeocoding(5,country);$("keybadge").textContent="";}
-      catch(e2){console.warn(e2);ROUNDS=offlineRounds();$("keybadge").textContent="地図を読み込めないため練習用の問題で遊んでいます";}}
+      catch(e2){console.warn(e2);ROUNDS=offlineRounds();$("keybadge").textContent=t("practiceFail");}}
   }
-  if(!ROUNDS.length)throw new Error("出題を用意できませんでした");
+  if(!ROUNDS.length)throw new Error(t("noRounds"));
   loadedMode=mode;loadedPrefix=prefix;
   r=0;stage=0;answered=false;pin=null;
 }
 async function boot(){
-  syncChrome();applyFrame();
-  if(mode!=="expert"){
+  applyLang();syncChrome();applyFrame();
+  if(!isZipMode()){
     $("ctrl").style.display="none";
-    $("title").innerHTML=`${MODES[mode].label}<small>出題地点を探しています…</small>`;
+    $("title").textContent=t("finding");
     try{await prepareRounds();}
-    catch(e){console.warn(e);try{ROUNDS=offlineRounds();}catch(e2){ROUNDS=DUMMY_ROUNDS.slice();}loadedMode=mode;}
-  }else if($("keybadge"))$("keybadge").textContent=MAPS_KEY?"":"上1〜2桁を入れて開始";
+    catch(e){console.warn(e);try{ROUNDS=offlineRounds();}catch(e2){ROUNDS=(isUS()?US_PLACES:DUMMY_ROUNDS).slice();}loadedMode=mode;}
+  }else if($("keybadge"))$("keybadge").textContent=MAPS_KEY?"":t("enterPrefix");
   vb=vbFor(0);render();hint();startIntro(()=>{hint();schedule();});
-  initGoogle().then(()=>{if(!gMode)return;if(mode==="expert"&&prefix)fitRegion();else setVB(vbFor(stage),true);});
+  initGoogle().then(()=>{if(!gMode)return;if(isZipMode()&&prefix)fitRegion();else setVB(vbFor(stage),true);});
 }
 $("menubtn").onclick=e=>{e.stopPropagation();const p=$("gmenu");p.hidden=!p.hidden;$("menubtn").setAttribute("aria-expanded",String(!p.hidden));};
 $("gmenu").onclick=e=>{const b=e.target.closest("button[data-go]");if(b)goGame(b.dataset.go);};
