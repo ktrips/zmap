@@ -45,12 +45,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .zd{display:block;font:700 32px/1 ui-monospace,Menlo,monospace;height:34px}
 .zcol.off .zd{opacity:.35}
 .zmark{display:block;margin-top:2px;padding:0;border:0;background:transparent;color:var(--mute);font:700 10px/1.15 system-ui;width:100%;cursor:default}
-.zmark b{display:block;font-size:12px}
+.zmark b{display:block;font-size:12px;white-space:nowrap}
 .zmark small{display:block;font-size:10px;font-weight:600}
 .zmark.now{color:var(--warn)}
 .zmark.now b{font-size:14px}
 .zmark.past{opacity:.35;text-decoration:line-through}
-.zmark.next{cursor:pointer;color:var(--acc)}
+.zmark.next{cursor:pointer;color:var(--acc);background:var(--acc2);border:2px solid var(--acc);border-radius:8px;padding:3px 0 2px;margin-top:4px;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.zmark.next b{font-size:15px}
+.zmark.next small{font-size:11px}
 .zmark:disabled{opacity:1}
 .steps{display:none}
 .steps i{width:34px;height:6px;border-radius:3px;background:var(--line)}
@@ -132,14 +134,12 @@ button:disabled{opacity:.45;cursor:not-allowed}
   #mapcard{order:-1}
   #playcard{overflow:visible}
   #playcard > h2,#mapcard > h2{display:none}
-  /* 1画面に 地図 + ヒントを広げる + 郵便番号 + 回答欄 が収まるよう、地図は残りの高さだけにする */
-  :root{--chrome:calc(env(safe-area-inset-top) + env(safe-area-inset-bottom) + 330px)}
-  #map,#gmap{height:calc(100vh - var(--chrome));height:calc(100dvh - var(--chrome));min-height:170px;max-height:56dvh}
+  /* 1画面に 地図 + ヒントを広げる + 郵便番号 + 回答欄。説明文はその下 */
+  #map,#gmap{height:min(34dvh,calc(100dvh - 480px));min-height:200px}
   #sv,#gsv{position:absolute;top:8px;right:8px;width:33%;height:96px;z-index:6;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.4);border:2px solid #fff;background:#123}
   .gm #gsv{display:block;width:33%;height:96px}
   #mapcard{position:relative}
-  #hint,#pinst{display:none!important}
-  .info{padding:6px 10px}
+  #hint{font-size:12px;padding:8px 10px 4px}
   #widen{margin:6px auto 0;padding:4px 14px;font-size:13px}
   .zip{padding:4px 4px 2px}
   .zip small{margin-top:2px;font-size:11px}
@@ -196,14 +196,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="bar" style="justify-content:center;padding-bottom:12px">
       <button id="next" class="primary" style="display:none">次のラウンドへ</button>
     </div>
+    <div class="info" id="pinst" style="display:none"></div>
+    <div class="info" id="hint"></div>
   </section>
 
   <section class="card" id="mapcard">
     <h2><span>地図(タップで目印のピン)</span><span id="area"></span></h2>
     <div id="reveal" class="reveal"></div>
     <svg id="map" viewBox="0 0 400 480"></svg><div id="gmap"></div>
-    <div class="info" id="pinst" style="display:none"></div>
-    <div class="info" id="hint"></div>
   </section>
 </div>
 
@@ -347,9 +347,23 @@ const PREF_BOX={
 const P2RANGES=[["00","00","北海道"],["04","09","北海道"],["03","03","青森県"],["02","02","岩手県"],["01","01","秋田県"],["98","98","宮城県"],["99","99","山形県"],["96","97","福島県"],["30","31","茨城県"],["32","32","栃木県"],["37","37","群馬県"],["33","36","埼玉県"],["26","29","千葉県"],["10","20","東京都"],["21","25","神奈川県"],["94","95","新潟県"],["93","93","富山県"],["92","92","石川県"],["91","91","福井県"],["40","40","山梨県"],["38","39","長野県"],["50","50","岐阜県"],["41","43","静岡県"],["44","49","愛知県"],["51","51","三重県"],["52","52","滋賀県"],["60","62","京都府"],["53","59","大阪府"],["65","67","兵庫県"],["63","63","奈良県"],["64","64","和歌山県"],["68","68","鳥取県"],["69","69","島根県"],["70","71","岡山県"],["72","73","広島県"],["74","75","山口県"],["77","77","徳島県"],["76","76","香川県"],["79","79","愛媛県"],["78","78","高知県"],["80","83","福岡県"],["84","84","佐賀県"],["85","85","長崎県"],["86","86","熊本県"],["87","87","大分県"],["88","88","宮崎県"],["89","89","鹿児島県"],["90","90","沖縄県"]];
 const P2PREF=(()=>{const m={};for(const [a,b,name] of P2RANGES){for(let n=+a;n<=+b;n++)m[String(n).padStart(2,"0")]=name;}return m;})();
 function shrinkBox(b,f){const lat=(b.lat[0]+b.lat[1])/2,lon=(b.lon[0]+b.lon[1])/2,dh=(b.lat[1]-b.lat[0])*f/2,dw=(b.lon[1]-b.lon[0])*f/2;return {lat:[lat-dh,lat+dh],lon:[lon-dw,lon+dw]};}
+// 東京23区の大まかな範囲(目安。境界データではなく概略の矩形)
+const WARD_BOX={
+  "千代田区":{lat:[35.672,35.703],lon:[139.733,139.780]},"中央区":{lat:[35.658,35.690],lon:[139.760,139.790]},"港区":{lat:[35.623,35.687],lon:[139.700,139.780]},
+  "新宿区":{lat:[35.677,35.732],lon:[139.667,139.742]},"文京区":{lat:[35.698,35.737],lon:[139.722,139.773]},"台東区":{lat:[35.700,35.730],lon:[139.775,139.812]},
+  "墨田区":{lat:[35.690,35.735],lon:[139.790,139.838]},"江東区":{lat:[35.600,35.690],lon:[139.790,139.880]},"品川区":{lat:[35.572,35.640],lon:[139.700,139.790]},
+  "目黒区":{lat:[35.608,35.660],lon:[139.660,139.730]},"大田区":{lat:[35.510,35.600],lon:[139.640,139.800]},"世田谷区":{lat:[35.611,35.690],lon:[139.505,139.685]},
+  "渋谷区":{lat:[35.636,35.690],lon:[139.670,139.730]},"中野区":{lat:[35.690,35.735],lon:[139.625,139.695]},"杉並区":{lat:[35.668,35.733],lon:[139.560,139.690]},
+  "豊島区":{lat:[35.709,35.740],lon:[139.690,139.740]},"北区":{lat:[35.735,35.815],lon:[139.680,139.772]},"荒川区":{lat:[35.720,35.770],lon:[139.770,139.840]},
+  "板橋区":{lat:[35.735,35.825],lon:[139.640,139.730]},"練馬区":{lat:[35.700,35.780],lon:[139.560,139.680]},"足立区":{lat:[35.745,35.830],lon:[139.740,139.860]},
+  "葛飾区":{lat:[35.715,35.790],lon:[139.810,139.905]},"江戸川区":{lat:[35.620,35.760],lon:[139.820,139.920]}
+};
+// 2桁の郵便番号が指す23区(同じ2桁でも区をまたぐので複数)
+const P2WARD={"10":["千代田区","中央区","港区"],"11":["台東区","文京区","北区","荒川区"],"12":["足立区","葛飾区","江戸川区"],"13":["墨田区","江東区","江戸川区"],"14":["品川区","大田区"],"15":["渋谷区","目黒区","世田谷区"],"16":["新宿区","中野区","杉並区"],"17":["豊島区","板橋区","練馬区"]};
 function regionBoxes(px,tight){
   const d=String(px||"").replace(/\D/g,"").slice(0,2);
   if(!/^\d{1,2}$/.test(d))return [];
+  if(d.length===2&&P2WARD[d])return P2WARD[d].map(n=>WARD_BOX[n]);
   const names=new Set();
   for(const [k,name] of Object.entries(P2PREF))if(k.startsWith(d))names.add(name);
   let boxes=[...names].map(n=>PREF_BOX[n]).filter(Boolean);
@@ -357,6 +371,7 @@ function regionBoxes(px,tight){
   return boxes;
 }
 function prefixHint(px){
+  if(px.length===2&&P2WARD[px])return P2WARD[px].join("・")+"(東京23区)";
   const names=[...new Set(Object.entries(P2PREF).filter(([k])=>k.startsWith(px)).map(([,v])=>v))];
   if(!names.length)return "その番号の地域はありません";
   const list=names.length>5?names.slice(0,5).join("・")+"など":names.join("・");
