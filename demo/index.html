@@ -164,7 +164,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <body>
 <div class="wrap">
 <header>
-  <h1><img class="logo" src="favicon.svg" alt="" width="40" height="40"><span class="brand">Zapper</span><small id="subtitle">都道府県当てゲーム</small></h1>
+  <h1><img class="logo" src="favicon.svg" alt="" width="40" height="40"><span class="brand">Zapper</span><small id="subtitle">都道府県当て</small></h1>
   <div class="bar">
     <div class="gmenu">
       <button id="menubtn" class="badge" type="button" aria-expanded="false" aria-haspopup="true">都道府県 ▾</button>
@@ -211,7 +211,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <p class="note">遊び方: 最初の画面か右上のメニューでゲームを選びます。<b>都道府県当てゲーム</b>(日本)が標準です。<b>州当てゲーム</b>はアメリカの ZIP から場所を当てます。<b>エキスパート街当てゲーム</b>は郵便番号の上1桁か2桁を入れると、その地域(2桁ならさらに狭い範囲)を地図に表示し、市区町村か街の名前を答えます。<br>郵便番号は20秒ごとに下の桁が外れ、見えていた桁数で得点が決まります。7桁 10点 / 6桁 8点 / 5桁 6点 / 4桁 4点 / 3桁 2点(州当ては5桁から1桁まで同じ点数)、外れは0点。5問で最大50点です。</p>
 </div>
 
-<div id="intro"><div id="title">Zapper<small>地図と郵便番号当てゲーム</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県当てゲーム</option><option value="state">州当てゲーム</option><option value="expert">エキスパート街当てゲーム</option></select><label id="pxlab">郵便番号<input id="ipx" inputmode="numeric" maxlength="2" placeholder="上1〜2桁" autocomplete="off" aria-label="郵便番号の上1桁または2桁"><span id="pxhint"></span></label><button id="throw" class="primary" type="button">🎯 投げる</button></div><button id="skip" type="button">スキップ</button></div>
+<div id="intro"><div id="title">Zapper<small>地図と郵便番号当てゲーム</small></div><canvas id="ic"></canvas><div id="ctrl"><select id="imode"><option value="pref">都道府県当て</option><option value="state">州当て</option><option value="expert">エキスパート街当て</option></select><label id="pxlab">郵便番号<input id="ipx" inputmode="numeric" maxlength="2" placeholder="上1〜2桁" autocomplete="off" aria-label="郵便番号の上1桁または2桁"><span id="pxhint"></span></label><button id="throw" class="primary" type="button">🎯 投げる</button></div><button id="skip" type="button">スキップ</button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
@@ -553,9 +553,9 @@ async function loadExpertRounds(count=5){
 const RADIUS_KM=[0.6,2,8,30,110];         // 7桁→3桁で広がる範囲
 const POINTS=[10,8,6,4,2];   // 郵便番号が 7/6/5/4/3 桁見えている段階で当てたときの得点
 const MODES={
-  pref:{label:"都道府県当てゲーム",short:"都道府県",what:"都道府県"},
-  state:{label:"州当てゲーム",short:"州",what:"州"},
-  expert:{label:"エキスパート街当てゲーム",short:"郵便番号",what:"市区町村または街"},
+  pref:{label:"都道府県当て",short:"都道府県",what:"都道府県"},
+  state:{label:"州当て",short:"州",what:"州"},
+  expert:{label:"エキスパート街当て",short:"郵便番号",what:"市区町村または街"},
   city:{label:"市区町村",short:"市区町村",what:"市区町村"},
   vd:{label:"Very difficult",short:"VD",what:"市区町村・町名・丁目番地"}
 };
@@ -863,7 +863,7 @@ function startIntro(done,auto){
   let finished=false,raf,tThrow=null,a0=0,l0F=0,curL0=0;
   intro.style.display="block";intro.style.opacity="";$("title").style.opacity="1";
   $("title").innerHTML=mode==="expert"&&loadedMode!=="expert"
-    ? `エキスパート街当てゲーム<small>郵便番号の上1桁か2桁を入れて、ダーツを投げよう</small>`
+    ? `エキスパート街当て<small>郵便番号の上1桁か2桁を入れて、ダーツを投げよう</small>`
     : `ダーツ ${r+1} / ${ROUNDS.length}<small>${r===0?"モードを選んで、":""}地球儀にダーツを投げよう</small>`;
   $("ctrl").style.display="flex";
   // モードはゲームの途中で変えられない。選べるのは1投目だけ
@@ -882,7 +882,7 @@ function startIntro(done,auto){
   async function ensurePlayable(){
     pick();
     if(mode==="expert"&&(!/^\d{1,2}$/.test(prefix)||!regionBoxes(prefix,false).length)){
-      $("title").innerHTML=`エキスパート街当てゲーム<small>郵便番号の上1桁か2桁を入れてください</small>`;
+      $("title").innerHTML=`エキスパート街当て<small>郵便番号の上1桁か2桁を入れてください</small>`;
       $("ctrl").style.display="flex";
       return false;
     }
