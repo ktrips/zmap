@@ -6,7 +6,7 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>Zapper — 地図と郵便番号当てゲーム</title>
+<title>Mapp — 地図と郵便番号当てゲーム</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--ink:#1c2430;--mute:#6b7785;--line:#dde3ea;--acc:#0b7a5c;--acc2:#e0f3ec;--warn:#c2410c;--sea:#dbeaf5;--land:#fff;--ring:#0b7a5c}
 @media (prefers-color-scheme:dark){:root{--bg:#10161d;--card:#18212b;--ink:#e6ecf2;--mute:#8d9aa8;--line:#2a3643;--acc:#3ecf9f;--acc2:#12352a;--warn:#fb923c;--sea:#16283a;--land:#223244;--ring:#3ecf9f}}
@@ -177,7 +177,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <body>
 <div class="wrap">
 <header>
-  <h1><img class="logo" src="favicon.svg" alt="" width="40" height="40"><span class="brand">Zapper</span><small id="subtitle">都道府県当て</small></h1>
+  <h1><img class="logo" src="favicon.svg" alt="" width="40" height="40"><span class="brand">Mapp</span><small id="subtitle">都道府県当て</small></h1>
   <div class="bar">
     <div class="gmenu">
       <button id="menubtn" class="badge" type="button" aria-expanded="false" aria-haspopup="true">都道府県 ▾</button>
@@ -219,7 +219,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <p class="note" id="note"></p>
 </div>
 
-<div id="intro"><canvas id="ic"></canvas><div id="brand"><img src="favicon.svg" alt="" width="56" height="56"><div><div class="nm"><b>Zapper</b><span id="flags"><button type="button" data-lang="ja" aria-label="日本語">🇯🇵</button><button type="button" data-lang="en" aria-label="English">🇺🇸</button></span></div><small id="tagline"></small></div></div><div id="top"><div id="title"></div><div id="ctrl"><select id="imode"></select><label id="pxlab"><span id="pxtxt"></span><input id="ipx" inputmode="numeric" maxlength="3" autocomplete="off"><span id="pxhint"></span></label><button id="throw" class="primary" type="button"></button></div><div id="modedesc"></div></div><button id="skip" type="button"></button></div>
+<div id="intro"><canvas id="ic"></canvas><div id="brand"><img src="favicon.svg" alt="" width="56" height="56"><div><div class="nm"><b>Mapp</b><span id="flags"><button type="button" data-lang="ja" aria-label="日本語">🇯🇵</button><button type="button" data-lang="en" aria-label="English">🇺🇸</button></span></div><small id="tagline"></small></div></div><div id="top"><div id="title"></div><div id="ctrl"><select id="imode"></select><label id="pxlab"><span id="pxtxt"></span><input id="ipx" inputmode="numeric" maxlength="3" autocomplete="off"><span id="pxhint"></span></label><button id="throw" class="primary" type="button"></button></div><div id="modedesc"></div></div><button id="skip" type="button"></button></div>
 <script src="config.js"></script>
 <script src="map-style.js"></script>
 <script src="native.js"></script>
@@ -666,7 +666,7 @@ ja:{
   rating:t=>t>=45?"伝説!":t>=30?"達人":t>=18?"上級者":t>=8?"中級者":t>0?"ビギナー":"全部外れ…",
   finalSub:(rate,label)=>`${rate}(最大50点・${label})`,
   histAt:when=>`${when} に達成`,histBest:" 🎊 自己ベスト!",histCap:b=>`得点の履歴(最高 ${b}点)`,histTh:["日時","モード","","得点"],
-  shareText:(short,daily,total,marks,url)=>`Zapper ${short}${daily} ${total}点 ${marks}\n${url}`,dailyWord:d=>` デイリー ${d}`,
+  shareText:(short,daily,total,marks,url)=>`Mapp ${short}${daily} ${total}点 ${marks}\n${url}`,dailyWord:d=>` デイリー ${d}`,
   meibutsu:p=>`${p}の名産`,spots:"名所",
   noRegion:"その番号の地域はありません",etc:" など",partial:"(一部)",needPrefix:"郵便番号の上1〜3桁を入れてください",noPlace:"この番号の地点を見つけられませんでした",
   noSVRounds:"ストリートビューのある出題地点を集められませんでした",noGeocode:"Geocoding で必要な出題地点を取得できませんでした",
@@ -699,7 +699,7 @@ en:{
   rating:t=>t>=45?"Legend!":t>=30?"Master":t>=18?"Expert":t>=8?"Intermediate":t>0?"Beginner":"All missed…",
   finalSub:(rate,label)=>`${rate} (max 50 pt · ${label})`,
   histAt:when=>`Achieved ${when}`,histBest:" 🎊 Personal best!",histCap:b=>`History (best ${b} pt)`,histTh:["Date","Mode","","Score"],
-  shareText:(short,daily,total,marks,url)=>`Zapper ${short}${daily} ${total} pt ${marks}\n${url}`,dailyWord:d=>` daily ${d}`,
+  shareText:(short,daily,total,marks,url)=>`Mapp ${short}${daily} ${total} pt ${marks}\n${url}`,dailyWord:d=>` daily ${d}`,
   noRegion:"No area for that prefix",etc:", …",partial:" (partly)",needPrefix:"Enter 1–3 digits of the ZIP code",noPlace:"Couldn't find a place for that prefix",
   noSVRounds:"Couldn't find places with Street View",noGeocode:"Couldn't get places from Geocoding",
   noPractice:"No practice question for this prefix. Try other digits.",finding:"Finding places…",noRounds:"Couldn't prepare the questions",noQuestion:"No questions",
@@ -717,7 +717,7 @@ let mode=(()=>{
 // 画面の固定文言を、選んだ言語で入れる
 function applyLang(){
   document.documentElement.lang=LANG;
-  document.title=`Zapper — ${t("tagline")}`;
+  document.title=`Mapp — ${t("tagline")}`;
   $("tagline").textContent=t("tagline");
   $("throw").textContent=t("throw");$("skip").textContent=t("skip");
   $("pxtxt").textContent=t("zipTxt");$("ipx").placeholder=t("ipxPh");$("ipx").setAttribute("aria-label",t("ipxAria"));
