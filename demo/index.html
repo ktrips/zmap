@@ -140,8 +140,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
   #playcard > h2,#mapcard > h2{display:none}
   /* 1画面に 地図 + ヒントを広げる + 郵便番号 + 回答欄。説明文はその下 */
   #map,#gmap{height:min(34dvh,calc(100dvh - 480px));min-height:200px}
-  #sv,#gsv{position:absolute;top:8px;right:8px;width:33%;height:96px;z-index:6;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.4);border:2px solid #fff;background:#123}
-  .gm #gsv{display:block;width:33%;height:96px}
+  #sv,#gsv{position:absolute;top:8px;right:8px;width:50%;height:172px;z-index:6;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.4);border:2px solid #fff;background:#123}
+  .gm #gsv{display:block;width:50%;height:172px}
+  /* 拡大縮小ボタンは小さくして、画像を広く見せる */
+  #gsv .gmnoprint,#gsv .gm-bundled-control{transform:scale(.6);transform-origin:right bottom}
   #mapcard{position:relative}
   #hint{font-size:12px;padding:8px 10px 4px}
   #widen{margin:6px auto 0;padding:4px 14px;font-size:13px}
