@@ -118,8 +118,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #pxlab input{width:5.2em;font-size:18px;padding:8px;text-align:center;letter-spacing:.12em;color:#111;background:#fff;border-radius:8px;border:none}
 #pxhint{display:block;max-width:220px;font-size:11px;line-height:1.3;opacity:.85}
 @media(max-width:720px){
-  .wrap{padding:8px 8px calc(12px + env(safe-area-inset-bottom))}
-  header{flex-wrap:nowrap;gap:4px;margin-bottom:8px;align-items:center}
+  /* ノッチ・ダイナミックアイランドに隠れないよう、上は安全領域ぶん空ける */
+  .wrap{padding:calc(env(safe-area-inset-top) + 6px) calc(8px + env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left))}
+  header{flex-wrap:nowrap;gap:4px;margin-bottom:6px;align-items:center}
   h1{flex:0 0 auto;font-size:0;line-height:0}
   h1 .brand,h1 small{display:none}
   h1 .logo{width:28px;height:28px;margin:0;border-radius:7px}
@@ -130,14 +131,32 @@ button:disabled{opacity:.45;cursor:not-allowed}
   .grid{position:relative;display:flex;flex-direction:column}
   #mapcard{order:-1}
   #playcard{overflow:visible}
-  #playcard > h2{display:none}
-  #map,#gmap{height:68vh}
-  #sv,#gsv{position:absolute;top:42px;right:8px;width:33%;height:120px;min-height:96px;z-index:6;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.4);border:2px solid #fff;background:#123}
-  .gm #gsv{display:block;width:33%;height:120px}
-  .zcol{width:32px}
-  .zd{font-size:24px;height:26px}
+  #playcard > h2,#mapcard > h2{display:none}
+  /* 1画面に 地図 + ヒントを広げる + 郵便番号 + 回答欄 が収まるよう、地図は残りの高さだけにする */
+  :root{--chrome:calc(env(safe-area-inset-top) + env(safe-area-inset-bottom) + 330px)}
+  #map,#gmap{height:calc(100vh - var(--chrome));height:calc(100dvh - var(--chrome));min-height:170px;max-height:56dvh}
+  #sv,#gsv{position:absolute;top:8px;right:8px;width:33%;height:96px;z-index:6;border-radius:10px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.4);border:2px solid #fff;background:#123}
+  .gm #gsv{display:block;width:33%;height:96px}
+  #mapcard{position:relative}
+  #hint,#pinst{display:none!important}
+  .info{padding:6px 10px}
+  #widen{margin:6px auto 0;padding:4px 14px;font-size:13px}
+  .zip{padding:4px 4px 2px}
+  .zip small{margin-top:2px;font-size:11px}
+  .zcol{width:30px}
+  .zcol.hy{width:10px}
+  .zd{font-size:22px;height:24px}
   .zmark b{font-size:10px}
   .zmark small{font-size:9px}
+  .bonus{margin:0 10px 4px}
+  .potential{display:none}
+  .cdtxt{margin-top:2px;font-size:11px}
+  .cd{height:6px}
+  .ans{gap:6px;padding:0 10px 8px}
+  .ans .country{display:none}
+  .ans select,.ans input{padding:6px 8px}
+  .ans label{gap:1px}
+  .result{margin:0 10px 8px}
   .gmenu-pop button{font-size:14px;padding:8px 10px;white-space:normal}
 }
 </style>
@@ -633,8 +652,8 @@ function drawZip(){
     html+=`<div class="zcol ${i<keep?"":"off"}"><span class="zd">${d[i]||"_"}</span>${mark}</div>`;
   }
   const unit=mode==="state"?"ZIP":"郵便番号";
-  const cap=answered?`正解の${unit} ${ROUNDS[r].zip}`:mode==="expert"?(prefix.length>=2?"2桁の範囲を地図に表示中":prefix.length===1?"1桁の地域を地図に表示中":"上1〜2桁を入力"):`下の桁から外れていきます(${len-stage}桁の範囲)`;
-  $("zip").innerHTML=html+`<small>${cap}</small>`;
+  const cap=answered?`正解の${unit} ${ROUNDS[r].zip}`:mode==="expert"?(prefix.length>=2?"2桁の範囲を地図に表示中":prefix.length===1?"1桁の地域を地図に表示中":"上1〜2桁を入力"):"";
+  $("zip").innerHTML=html+(cap?`<small>${cap}</small>`:"");
   $("steps").innerHTML=[0,1,2,3,4].map(i=>`<i class="${i<=stage?"on":""}"></i>`).join("");
   $("area").textContent=mode==="expert"&&!answered?(prefix.length>=2?"郵便番号の範囲":"郵便番号の地域"):`半径 約${RADIUS_KM[stage]}km`;
 }
@@ -699,7 +718,6 @@ const FLABEL={pref:"都道府県",city:"市区町村",town:"町名",num:"丁目�
 const FHOLD={city:"例: 金沢市(都道府県と「市」「区」「町」「村」は省略可)",town:"例: 香林坊(丁目は不要)",num:"例: 2丁目"};
 const COUNTRY={JP:"🇯🇵 日本",US:"🇺🇸 アメリカ",GB:"🇬🇧 イギリス",IN:"🇮🇳 インド"};
 function buildForm(){
-  const country=mode==="state"?"US":"JP";
   let body="";
   if(mode==="expert"){
     body=`<label class="full">郵便番号の上1〜2桁<input id="px" inputmode="numeric" maxlength="2" autocomplete="off" value="${(prefix||"").replace(/\D/g,"")}" placeholder="例: 10"></label><label class="full">市区町村または街<input id="a_place" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="例: 金沢市 または 香林坊" enterkeyhint="go"></label>`;
@@ -708,7 +726,7 @@ function buildForm(){
   }else{
     body=`<label class="full">都道府県<select id="a_pref"><option value="">選択してください</option>${PREFS.map(p=>`<option>${p}</option>`).join("")}</select></label>`;
   }
-  $("ans").innerHTML=`<div class="country">国: <b>${COUNTRY[country]}</b>(ダーツが刺さった国)</div>`+body+`<button id="submit" class="primary" type="button">回答する</button>`;
+  $("ans").innerHTML=body+`<button id="submit" class="primary" type="button">回答する</button>`;
   const pxEl=$("px");
   if(pxEl)pxEl.oninput=()=>{const v=pxEl.value.replace(/\D/g,"").slice(0,2);pxEl.value=v;if(v&&regionBoxes(v,true).length){prefix=v;fitRegion();drawZip();}};
   $("ans").querySelectorAll("input").forEach(el=>{if(el.id==="px")return;el.onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)submitAnswer();};});
